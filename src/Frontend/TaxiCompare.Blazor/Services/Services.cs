@@ -47,8 +47,13 @@ public class JwtAuthStateProvider : AuthenticationStateProvider
     {
         var token = await _storage.GetItemAsync<string>("auth_token");
         if (string.IsNullOrEmpty(token))
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
             return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+        }
 
+        // Всегда обновляем заголовок — это защищает от race condition
+        // когда страница рендерится до завершения GetAuthenticationStateAsync
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var claims = ParseClaimsFromJwt(token);
         var identity = new ClaimsIdentity(claims, "jwt");
