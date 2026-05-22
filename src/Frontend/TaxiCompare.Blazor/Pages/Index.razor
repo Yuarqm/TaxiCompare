@@ -611,13 +611,13 @@
 
         return slug switch
         {
-            // Яндекс Go — поддерживает передачу маршрута через URL
-            "yandex" => $"https://taxi.yandex.ru/route?utm_source=taxicompare" +
-                        $"&start-lat={oLat:F6}&start-lon={oLng:F6}" +
+            // Яндекс Go — рабочий deep link с координатами маршрута
+            "yandex" => $"https://3.redirect.appmetrica.yandex.com/route" +
+                        $"?start-lat={oLat:F6}&start-lon={oLng:F6}" +
                         $"&end-lat={dLat:F6}&end-lon={dLng:F6}" +
-                        $"&ref=taxicompare",
+                        $"&appmetrica_tracking_id=1178268795219968205",
 
-            // Uber — поддерживает deep link с координатами
+            // Uber — deep link с координатами
             "uber"   => $"https://m.uber.com/ul/?" +
                         $"action=setPickup" +
                         $"&pickup[latitude]={oLat:F6}&pickup[longitude]={oLng:F6}" +
@@ -625,13 +625,13 @@
                         $"&dropoff[latitude]={dLat:F6}&dropoff[longitude]={dLng:F6}" +
                         $"&dropoff[nickname]={destEnc}",
 
-            // Омега Такси — официальный сайт (нет публичного API для deep link)
-            "omega"  => "https://omega-taxi.ru/",
+            // Омега Такси — официальный сайт
+            "omega"  => "https://taxiomega.ru/ru/",
 
             // Такси Максим — официальный сайт
-            "maksim" => $"https://taximaxim.com/",
+            "maksim" => "https://taximaxim.com/",
 
-            _        => "https://taxicompare.ru/"
+            _        => "https://taxiomega.ru/ru/"
         };
     }
 
