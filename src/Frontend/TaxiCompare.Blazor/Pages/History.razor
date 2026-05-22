@@ -186,15 +186,16 @@
         StateHasChanged();
         try
         {
-            // Всегда берём токен из localStorage и подставляем перед запросом
-            // (HttpClient может не иметь заголовка если страница открыта напрямую)
             var token = await LocalStorage.GetItemAsync<string>("auth_token");
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/rides");
             if (!string.IsNullOrEmpty(token))
-                Http.DefaultRequestHeaders.Authorization =
+                request.Headers.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            var result = await Http.GetFromJsonAsync<List<RideHistoryItem>>("/api/rides");
-            Rides = result ?? new();
+            var response = await Http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            Rides = await response.Content.ReadFromJsonAsync<List<RideHistoryItem>>() ?? new();
             ApplyFilter();
         }
         catch (Exception ex)
