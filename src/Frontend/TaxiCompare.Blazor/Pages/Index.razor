@@ -224,7 +224,7 @@
                                     {
                                         <span class="splash-spinner" style="width:14px;height:14px;border-width:2px;margin-right:6px;"></span>
                                     }
-                                    🚕 Заказать
+                                    Заказать
                                 </button>
                             }
                             else { <div style="color:var(--text-muted);font-size:13px;">Недоступно</div> }
@@ -290,6 +290,14 @@
     {
         if (firstRender)
         {
+            // Читаем параметры ?from=&to= (кнопка «Повторить» из истории)
+            var uri = Nav.ToAbsoluteUri(Nav.Uri);
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+            if (query.TryGetValue("from", out var from) && !string.IsNullOrEmpty(from))
+                OriginAddress = from!;
+            if (query.TryGetValue("to", out var to) && !string.IsNullOrEmpty(to))
+                DestinationAddress = to!;
+
             _selfRef = DotNetObjectReference.Create(this);
             await Task.Delay(1500);
             await InitMap();
@@ -611,11 +619,8 @@
 
         return slug switch
         {
-            // Яндекс Go — рабочий deep link с координатами маршрута
-            "yandex" => $"https://3.redirect.appmetrica.yandex.com/route" +
-                        $"?start-lat={oLat:F6}&start-lon={oLng:F6}" +
-                        $"&end-lat={dLat:F6}&end-lon={dLng:F6}" +
-                        $"&appmetrica_tracking_id=1178268795219968205",
+            // Яндекс Go — простая ссылка на официальный сайт
+            "yandex" => "https://taxi.yandex.ru/",
 
             // Uber — deep link с координатами
             "uber"   => $"https://m.uber.com/ul/?" +

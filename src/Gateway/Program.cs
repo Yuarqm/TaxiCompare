@@ -177,7 +177,8 @@ try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<TaxiCompareDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    // MigrateAsync применяет все pending-миграции (включая новые поля OrderedAt и т.д.)
+    await db.Database.MigrateAsync();
     if (!db.Providers.Any())
     {
         db.Providers.AddRange(

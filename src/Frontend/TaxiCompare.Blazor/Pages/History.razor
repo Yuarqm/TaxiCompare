@@ -2,6 +2,8 @@
 @attribute [Authorize]
 @inject HttpClient Http
 @inject IToastService Toast
+@inject NavigationManager Nav
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <PageTitle>История поездок – ТаксиСравни</PageTitle>
 
@@ -9,76 +11,125 @@
     <h1 class="section-title" style="font-size:32px;">История поездок</h1>
     <p class="text-secondary mb-32">Все ваши прошлые поиски и заказанные поездки</p>
 
+    @if (!IsLoading && Rides.Any())
+    {
+        <!-- Фильтры и поиск -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;align-items:center;">
+            <input class="form-input" type="text" placeholder="Поиск по адресу..."
+                   style="max-width:320px;padding:10px 14px;"
+                   @oninput="OnSearch" value="@SearchText" />
+
+            <div style="display:flex;gap:8px;">
+                @foreach (var f in new[] { ("all","Все"), ("ordered","Заказанные"), ("search","Только поиск"), ("fav","Избранное") })
+                {
+                    <button class="btn btn-secondary btn-sm"
+                            style="@(ActiveFilter == f.Item1 ? "border-color:var(--accent);color:var(--accent);background:rgba(0,212,106,0.08);" : "")"
+                            @onclick="() => SetFilter(f.Item1)">
+                        @f.Item2
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
     @if (IsLoading)
     {
-        @for (int i = 0; i < 5; i++) { <div class="skeleton skeleton-card"></div> }
+        @for (int i = 0; i < 5; i++) { <div class="skeleton skeleton-card" style="margin-bottom:12px;"></div> }
     }
-    else if (!Rides.Any())
+    else if (HasError)
+    {
+        <div class="card text-center" style="padding:48px 24px;border-color:rgba(255,80,80,0.3);">
+            <div style="font-size:40px;margin-bottom:16px;">⚠️</div>
+            <div class="section-title" style="color:#ff6b6b;">Ошибка загрузки</div>
+            <p class="text-secondary mt-8">Не удалось получить историю поездок. Попробуйте обновить страницу.</p>
+            <button class="btn btn-primary mt-24" @onclick="LoadRides">Обновить</button>
+        </div>
+    }
+    else if (!FilteredRides.Any())
     {
         <div class="card text-center" style="padding:64px 24px;">
-            <div style="font-size:48px; margin-bottom:16px;">🚕</div>
-            <div class="section-title">Поездок пока нет</div>
-            <p class="text-secondary mt-8">Сравните первую поездку, и она появится здесь</p>
+            <div style="font-size:48px; margin-bottom:16px;">🗺</div>
+            <div class="section-title">
+                @if (SearchText.Length > 0 || ActiveFilter != "all")
+                { <span>Ничего не найдено</span> }
+                else
+                { <span>Поездок пока нет</span> }
+            </div>
+            <p class="text-secondary mt-8">
+                @if (SearchText.Length > 0 || ActiveFilter != "all")
+                { <span>Попробуйте изменить фильтр или поисковый запрос</span> }
+                else
+                { <span>Сравните первую поездку, и она появится здесь</span> }
+            </p>
             <a href="/" class="btn btn-primary mt-24">Найти такси</a>
         </div>
     }
     else
     {
         <div style="display:flex; flex-direction:column; gap:12px;">
-            @foreach (var ride in Rides)
+            @foreach (var ride in FilteredRides)
             {
                 var isOrdered = ride.Status == "Ordered";
+                var isFav = FavoriteIds.Contains(ride.Id);
+
                 <div class="card animate-fade-up"
                      style="@(isOrdered ? "border-color:rgba(0,212,106,0.35);background:rgba(0,212,106,0.04);" : "")">
-                    <div style="display:grid; grid-template-columns:auto 1fr auto; gap:16px; align-items:start;">
+                    <div style="display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:start;">
 
-                        <!-- Иконка -->
-                        <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;
-                                    background:@(isOrdered ? "rgba(0,212,106,0.15)" : "var(--accent-glow)");
-                                    color:@(isOrdered ? "var(--accent)" : "var(--accent)");">
+                        <!-- Иконка статуса -->
+                        <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;
+                                    justify-content:center;font-size:20px;flex-shrink:0;
+                                    background:@(isOrdered ? "rgba(0,212,106,0.15)" : "var(--accent-glow)");">
                             @(isOrdered ? "✅" : "🗺")
                         </div>
 
-                        <!-- Маршрут и детали -->
+                        <!-- Маршрут -->
                         <div>
-                            <div style="font-weight:600; font-size:15px; margin-bottom:4px;">
+                            <div style="font-weight:600;font-size:15px;margin-bottom:4px;">
                                 @ride.OriginAddress → @ride.DestinationAddress
                             </div>
-                            <div style="color:var(--text-muted); font-size:13px; margin-bottom:6px;">
+                            <div style="color:var(--text-muted);font-size:13px;margin-bottom:8px;">
                                 @ride.RequestedAt.ToLocalTime().ToString("dd MMM yyyy, HH:mm")
                                 · @ride.PriceSnapshotCount сервисов сравнено
                             </div>
 
-                            <!-- Блок «Заказано» -->
-                            @if (isOrdered && ride.OrderedProviderName is not null)
-                            {
-                                <div style="display:inline-flex;align-items:center;gap:8px;
-                                            background:rgba(0,212,106,0.1);border:1px solid rgba(0,212,106,0.25);
-                                            border-radius:20px;padding:4px 12px;font-size:13px;margin-top:2px;">
-                                    <span style="color:var(--accent);font-weight:700;">🚕 Заказано</span>
-                                    <span style="color:var(--text-secondary);">
-                                        @ride.OrderedProviderName · @TranslateClass(ride.OrderedVehicleClass ?? "")
-                                    </span>
-                                    @if (ride.OrderedAt.HasValue)
-                                    {
-                                        <span style="color:var(--text-muted);">
-                                            в @ride.OrderedAt.Value.ToLocalTime().ToString("HH:mm")
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                                <!-- Статус -->
+                                @if (isOrdered && ride.OrderedProviderName is not null)
+                                {
+                                    <div style="display:inline-flex;align-items:center;gap:6px;
+                                                background:rgba(0,212,106,0.1);border:1px solid rgba(0,212,106,0.25);
+                                                border-radius:20px;padding:4px 12px;font-size:13px;">
+                                        <span style="color:var(--accent);font-weight:700;">Заказано</span>
+                                        <span style="color:var(--text-secondary);">
+                                            @ride.OrderedProviderName · @TranslateClass(ride.OrderedVehicleClass ?? "")
                                         </span>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div style="display:inline-flex;align-items:center;gap:6px;
-                                            background:var(--card-bg);border:1px solid var(--border);
-                                            border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-muted);">
-                                    🔍 Только сравнение
-                                </div>
-                            }
+                                        @if (ride.OrderedAt.HasValue)
+                                        {
+                                            <span style="color:var(--text-muted);">в @ride.OrderedAt.Value.ToLocalTime().ToString("HH:mm")</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div style="display:inline-flex;align-items:center;gap:6px;
+                                                background:var(--card-bg);border:1px solid var(--border);
+                                                border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-muted);">
+                                        Только сравнение
+                                    </div>
+                                }
+
+                                <!-- Кнопка повторить маршрут -->
+                                <button class="btn btn-secondary btn-sm"
+                                        style="font-size:12px;padding:4px 12px;"
+                                        @onclick="() => RepeatRoute(ride)">
+                                    Повторить
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Цена -->
-                        <div style="text-align:right;min-width:90px;">
+                        <!-- Цена + избранное -->
+                        <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
                             @if (isOrdered && ride.OrderedPrice.HasValue)
                             {
                                 <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--accent);">
@@ -93,27 +144,126 @@
                                 </div>
                                 <div style="font-size:11px;color:var(--text-muted);">лучшая цена</div>
                             }
+
+                            <!-- Звёздочка избранного -->
+                            <button @onclick="() => ToggleFavorite(ride.Id)"
+                                    style="background:none;border:none;cursor:pointer;font-size:20px;padding:0;
+                                           color:@(isFav ? "#FFD600" : "var(--text-muted)");"
+                                    title="@(isFav ? "Убрать из избранного" : "Добавить в избранное")">
+                                @(isFav ? "★" : "☆")
+                            </button>
                         </div>
                     </div>
                 </div>
             }
         </div>
+
+        <p style="color:var(--text-muted);font-size:13px;text-align:center;margin-top:24px;">
+            Показано @FilteredRides.Count из @Rides.Count поездок
+        </p>
     }
 </div>
 
 @code {
     private List<RideHistoryItem> Rides = new();
+    private List<RideHistoryItem> FilteredRides = new();
+    private HashSet<Guid> FavoriteIds = new();
     private bool IsLoading = true;
+    private bool HasError = false;
+    private string SearchText = "";
+    private string ActiveFilter = "all";
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadFavorites();
+        await LoadRides();
+    }
+
+    private async Task LoadRides()
+    {
+        IsLoading = true;
+        HasError = false;
+        StateHasChanged();
         try
         {
             var result = await Http.GetFromJsonAsync<List<RideHistoryItem>>("/api/rides");
             Rides = result ?? new();
+            ApplyFilter();
         }
-        catch { Toast.ShowError("Не удалось загрузить историю поездок"); }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"History load error: {ex.Message}");
+            HasError = true;
+        }
         finally { IsLoading = false; }
+    }
+
+    private async Task LoadFavorites()
+    {
+        try
+        {
+            var favs = await LocalStorage.GetItemAsync<List<Guid>>("favorite_rides");
+            FavoriteIds = favs?.ToHashSet() ?? new();
+        }
+        catch { FavoriteIds = new(); }
+    }
+
+    private async Task ToggleFavorite(Guid id)
+    {
+        if (FavoriteIds.Contains(id)) FavoriteIds.Remove(id);
+        else FavoriteIds.Add(id);
+
+        try { await LocalStorage.SetItemAsync("favorite_rides", FavoriteIds.ToList()); }
+        catch { }
+
+        ApplyFilter();
+        Toast.ShowSuccess(FavoriteIds.Contains(id) ? "Добавлено в избранное" : "Убрано из избранного");
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        SearchText = e.Value?.ToString() ?? "";
+        ApplyFilter();
+    }
+
+    private void SetFilter(string filter)
+    {
+        ActiveFilter = filter;
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        var result = Rides.AsEnumerable();
+
+        // Текстовый поиск
+        if (!string.IsNullOrWhiteSpace(SearchText))
+        {
+            var q = SearchText.ToLowerInvariant();
+            result = result.Where(r =>
+                r.OriginAddress.ToLowerInvariant().Contains(q) ||
+                r.DestinationAddress.ToLowerInvariant().Contains(q) ||
+                (r.OrderedProviderName?.ToLowerInvariant().Contains(q) ?? false));
+        }
+
+        // Фильтр по статусу
+        result = ActiveFilter switch
+        {
+            "ordered" => result.Where(r => r.Status == "Ordered"),
+            "search"  => result.Where(r => r.Status != "Ordered"),
+            "fav"     => result.Where(r => FavoriteIds.Contains(r.Id)),
+            _         => result
+        };
+
+        FilteredRides = result.ToList();
+        StateHasChanged();
+    }
+
+    private void RepeatRoute(RideHistoryItem ride)
+    {
+        // Передаём адреса через query string на главную
+        var url = $"/?from={Uri.EscapeDataString(ride.OriginAddress)}&to={Uri.EscapeDataString(ride.DestinationAddress)}";
+        Nav.NavigateTo(url);
     }
 
     private static string TranslateClass(string cls) => cls switch
