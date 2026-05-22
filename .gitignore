@@ -1,0 +1,39 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+*.DotSettings
+
+## EF Migrations (keep the files, ignore snapshots separately if needed)
+## Uncomment if you want to exclude migration bundles:
+# efbundle
+
+## Secrets
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.pfx
+*.p12
+
+## Docker
+.dockerignore
+
+## Test Results
+TestResults/
+coverage-report/
+**/*.cobertura.xml
+
+## Node (for any tooling)
+node_modules/
+dist/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Rider / JetBrains
+.idea/
+*.sln.iml

@@ -1,0 +1,106 @@
+@page "/analytics"
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Аналитика – ТаксиСравни</PageTitle>
+
+<div class="app-container" style="padding-top: 48px; padding-bottom: 80px;">
+    <h1 class="section-title" style="font-size:32px;">Аналитика цен</h1>
+    <p class="text-secondary mb-24">Исторические тренды и рыночные данные по всем сервисам</p>
+
+    <div class="tab-bar" style="max-width:320px; margin-bottom:32px;">
+        @foreach (var p in new[] { "1h", "24h", "7d" })
+        {
+            <button class="tab-item @(Period == p ? "active" : "")" @onclick="() => SetPeriod(p)">
+                @(p == "1h" ? "1 час" : p == "24h" ? "24 часа" : "7 дней")
+            </button>
+        }
+    </div>
+
+    <div class="card mb-24">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+            <div>
+                <div class="section-title">История цен</div>
+                <div class="text-secondary" style="font-size:13px;">Средняя стоимость поездки по всем сервисам</div>
+            </div>
+            <div class="badge badge-success">Онлайн</div>
+        </div>
+        <div class="chart-container">
+            <canvas id="priceChart"></canvas>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap:16px;">
+        @foreach (var provider in Providers)
+        {
+            <div class="card animate-fade-up">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div class="provider-logo-placeholder logo-@provider.Slug" style="width:36px;height:36px;font-size:13px;">
+                        @provider.Name[0]
+                    </div>
+                    <div class="badge @(provider.Trend > 0 ? "badge-danger" : "badge-success")">
+                        @(provider.Trend > 0 ? "↑" : "↓") @Math.Abs(provider.Trend).ToString("F1")%
+                    </div>
+                </div>
+                <div style="margin-top:16px;">
+                    <div style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">@provider.Name</div>
+                    <div style="font-family:var(--font-display); font-size:24px; font-weight:700; margin-top:4px;">
+                        @provider.AvgPrice.ToString("F0") ₽
+                    </div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Средняя цена маршрута</div>
+                    <div style="font-size:13px; color:var(--text-secondary); margin-top:6px;">
+                        ~@provider.PricePerKm.ToString("F0") ₽/км · посадка @provider.BaseFare ₽
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string Period = "24h";
+    private List<ProviderStat> Providers = GenerateStats();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await RenderChart();
+    }
+
+    private async Task SetPeriod(string p)
+    {
+        Period = p;
+        Providers = GenerateStats();
+        await RenderChart();
+    }
+
+    private async Task RenderChart()
+    {
+        var labels = Period switch
+        {
+            "1h" => Enumerable.Range(0, 12).Select(i => $"{i * 5} мин").ToArray(),
+            "7d" => Enumerable.Range(0, 7).Select(i => DateTime.Today.AddDays(-6 + i).ToString("ddd")).ToArray(),
+            _    => Enumerable.Range(0, 24).Select(i => $"{i:D2}:00").ToArray()
+        };
+
+        var datasets = Providers.Select(p => new {
+            label = p.Name,
+            data = Enumerable.Range(0, labels.Length).Select(_ => Math.Round(p.AvgPrice + (Random.Shared.NextDouble() - 0.5) * 60, 0)).ToArray(),
+            borderColor = p.Slug switch { "uber" => "#fff", "omega" => "#FF6B00", "yandex" => "#FFCC00", _ => "#FFD700" },
+            backgroundColor = p.Slug switch { "uber" => "rgba(255,255,255,0.05)", "omega" => "rgba(255,107,0,0.05)", "yandex" => "rgba(255,204,0,0.05)", _ => "rgba(255,215,0,0.05)" },
+            tension = 0.4, fill = true, pointRadius = 2
+        }).ToList();
+
+        await JS.InvokeVoidAsync("renderPriceChart", "priceChart", labels, datasets);
+    }
+
+    private static List<ProviderStat> GenerateStats() => new()
+    {
+        // Средняя поездка ~15 км: посадка + км * тариф + мин * тариф
+        new("Uber",         "uber",   Math.Round(100 + 15*18 + 22*5 + (Random.Shared.NextDouble()-0.5)*80, 0), Random.Shared.NextDouble() * 6 - 3, 18, 100),
+        new("Омега",        "omega",  Math.Round( 60 + 15*14 + 24*3 + (Random.Shared.NextDouble()-0.5)*60, 0), Random.Shared.NextDouble() * 6 - 3, 14,  60),
+        new("Яндекс Такси", "yandex", Math.Round( 79 + 15*16 + 23*4 + (Random.Shared.NextDouble()-0.5)*70, 0), Random.Shared.NextDouble() * 6 - 3, 16,  79),
+        new("Такси Максим", "maksim", Math.Round( 50 + 15*12 + 25*3 + (Random.Shared.NextDouble()-0.5)*50, 0), Random.Shared.NextDouble() * 6 - 3, 12,  50),
+    };
+
+    record ProviderStat(string Name, string Slug, double AvgPrice, double Trend, int PricePerKm, int BaseFare);
+}

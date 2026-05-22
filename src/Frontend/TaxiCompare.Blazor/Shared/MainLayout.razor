@@ -1,0 +1,46 @@
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+
+<div class="app-wrapper">
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <a href="/" class="brand">
+                <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+                    <rect width="48" height="48" rx="14" fill="#00D46A"/>
+                    <path d="M12 30L20 18L28 26L36 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="36" cy="16" r="3" fill="white"/>
+                </svg>
+                <span class="brand-name">Такси<span>Сравни</span></span>
+            </a>
+
+            <div class="nav-links">
+                <a href="/" class="nav-link">Поиск</a>
+                <a href="/analytics" class="nav-link">Аналитика</a>
+                <AuthorizeView>
+                    <Authorized>
+                        <button @onclick="Logout" class="btn btn-secondary btn-sm">Выйти</button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="btn btn-secondary btn-sm">Войти</a>
+                        <a href="/register" class="btn btn-primary btn-sm">Регистрация</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        @Body
+    </main>
+
+    <BlazoredToasts Position="Blazored.Toast.Configuration.ToastPosition.BottomRight" />
+</div>
+
+@code {
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Nav.NavigateTo("/");
+    }
+}

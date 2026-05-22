@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ТаксиСравни – Найди выгодную поездку</title>
+    <base href="/" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/weather.css" />
+    <link rel="icon" href="favicon.ico" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/map.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="splash-screen">
+            <div class="splash-logo">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <rect width="48" height="48" rx="14" fill="#00D46A"/>
+                    <path d="M12 30L20 18L28 26L36 16" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="36" cy="16" r="3" fill="white"/>
+                </svg>
+                <span>ТаксиСравни</span>
+            </div>
+            <div class="splash-spinner"></div>
+        </div>
+    </div>
+    <div id="blazor-error-ui">
+        Произошла непредвиденная ошибка.
+        <a href="" class="reload">Обновить</a>
+        <a class="dismiss">🗙</a>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+</html>

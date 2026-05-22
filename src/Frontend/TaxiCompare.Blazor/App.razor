@@ -1,0 +1,22 @@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <RedirectToPage Page="/login" />
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>404 — TaxiCompare</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="app-container text-center mt-48">
+                    <h1 class="hero-title">404</h1>
+                    <p class="text-secondary mt-16">This page doesn't exist.</p>
+                    <a href="/" class="btn btn-primary mt-24">Go Home</a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

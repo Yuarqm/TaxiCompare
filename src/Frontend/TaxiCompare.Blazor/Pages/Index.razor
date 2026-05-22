@@ -1,0 +1,647 @@
+@page "/"
+@inject IPriceService PriceService
+@inject IWeatherClientService WeatherClientService
+@inject IToastService Toast
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject IAuthService AuthService
+@inject HttpClient Http
+@implements IDisposable
+
+<PageTitle>ТаксиСравни – Найди самую выгодную поездку</PageTitle>
+
+<div class="app-container">
+    <section class="hero">
+        <div class="hero-eyebrow">
+            <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4"/></svg>
+            Сравнение цен в реальном времени
+        </div>
+        <h1 class="hero-title">Сравни все такси.<br/>Выбери <em>лучшую цену</em>.</h1>
+        <p class="hero-subtitle">Uber, Яндекс Такси, Омега, Такси Максим — экономь до 40% на каждой поездке.</p>
+    </section>
+
+    <!-- Search -->
+    <div class="search-container animate-fade-up">
+        <div class="search-row">
+            <div class="input-group" style="position:relative;">
+                <label class="input-label">Откуда</label>
+                <div class="input-wrap">
+                    <svg width="16" height="16" fill="none" stroke="@(PickMode=="origin" ? "#00D46A" : "currentColor")"
+                         stroke-width="2" viewBox="0 0 24 24" style="cursor:pointer"
+                         @onclick='() => StartPicking("origin")'>
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                    </svg>
+                    <input class="form-input" type="text" placeholder="Введите адрес или выберите на карте"
+                           value="@OriginAddress"
+                           @oninput='e => OnAddressInput(e, "origin")'
+                           @onfocus='() => ShowSuggest["origin"] = true'
+                           @onblur='() => Task.Delay(200).ContinueWith(_ => { ShowSuggest["origin"] = false; InvokeAsync(StateHasChanged); })'
+                           autocomplete="off" />
+                </div>
+                @if (ShowSuggest["origin"] && OriginSuggests.Count > 0)
+                {
+                    <div style="position:absolute;z-index:100;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                        @foreach (var s in OriginSuggests)
+                        {
+                            <div style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);"
+                                 @onmousedown='() => SelectSuggest(s, "origin")'>
+                                📍 @s
+                            </div>
+                        }
+                    </div>
+                }
+                @if (PickMode == "origin")
+                {
+                    <small style="color:var(--accent)">📍 Нажмите на карту чтобы выбрать точку</small>
+                }
+            </div>
+            <div class="input-group" style="position:relative;">
+                <label class="input-label">Куда</label>
+                <div class="input-wrap">
+                    <svg width="16" height="16" fill="none" stroke="@(PickMode=="dest" ? "#00D46A" : "currentColor")"
+                         stroke-width="2" viewBox="0 0 24 24" style="cursor:pointer"
+                         @onclick='() => StartPicking("dest")'>
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    <input class="form-input" type="text" placeholder="Введите адрес или выберите на карте"
+                           value="@DestinationAddress"
+                           @oninput='e => OnAddressInput(e, "dest")'
+                           @onfocus='() => ShowSuggest["dest"] = true'
+                           @onblur='() => Task.Delay(200).ContinueWith(_ => { ShowSuggest["dest"] = false; InvokeAsync(StateHasChanged); })'
+                           autocomplete="off" />
+                </div>
+                @if (ShowSuggest["dest"] && DestSuggests.Count > 0)
+                {
+                    <div style="position:absolute;z-index:100;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);width:100%;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                        @foreach (var s in DestSuggests)
+                        {
+                            <div style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);"
+                                 @onmousedown='() => SelectSuggest(s, "dest")'>
+                                📍 @s
+                            </div>
+                        }
+                    </div>
+                }
+                @if (PickMode == "dest")
+                {
+                    <small style="color:var(--accent)">📍 Нажмите на карту чтобы выбрать точку</small>
+                }
+            </div>
+            <button class="btn btn-primary btn-lg" @onclick="SearchPrices" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span class="splash-spinner" style="width:18px;height:18px;border-width:2px;"></span>
+                }
+                else
+                {
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                    </svg>
+                }
+                Сравнить
+            </button>
+        </div>
+        <!-- Выбор категории -->
+        <div style="display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap;">
+            <span style="font-size:13px; color:var(--text-secondary);">Категория:</span>
+            @foreach (var cat in new[] { ("all","Все"), ("Economy","Эконом"), ("Comfort","Комфорт"), ("Business","Бизнес") })
+            {
+                <button class="btn btn-secondary btn-sm"
+                        style="@(SelectedClass == cat.Item1 ? "border-color:var(--accent);color:var(--accent);background:rgba(0,212,106,0.08);" : "")"
+                        @onclick="() => { SelectedClass = cat.Item1; ApplyClassFilterAnimated(); }">
+                    @cat.Item2
+                </button>
+            }
+        </div>
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <p class="form-error mt-16">@ErrorMessage</p>
+        }
+        @if (!string.IsNullOrEmpty(RouteStats))
+        {
+            <p style="color:var(--text-secondary); font-size:13px; margin-top:12px;">📏 @RouteStats</p>
+        }
+    </div>
+
+    <!-- Map -->
+    <div class="mt-24">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+            <div class="section-title" style="margin-bottom:0;">🗺 Карта 2GIS</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-secondary btn-sm" style="@(PickMode=="origin" ? "border-color:var(--accent);color:var(--accent)" : "")"
+                        @onclick='() => StartPicking("origin")'>
+                    📍 Точка А (откуда)
+                </button>
+                <button class="btn btn-secondary btn-sm" style="@(PickMode=="dest" ? "border-color:var(--accent);color:var(--accent)" : "")"
+                        @onclick='() => StartPicking("dest")'>
+                    📍 Точка Б (куда)
+                </button>
+            </div>
+        </div>
+        <div style="width:100%; height:400px; border-radius:var(--radius-lg); overflow:hidden; border:1px solid var(--border);">
+            <div id="route-map" style="width:100%; height:100%;"></div>
+        </div>
+    </div>
+
+    <!-- Погодный баннер -->
+    @if (IsNightTime)
+    {
+        <div class="mt-16" style="background:linear-gradient(135deg,rgba(30,20,60,0.95),rgba(50,30,80,0.95));border:1px solid rgba(150,100,255,0.3);border-radius:var(--radius-lg);padding:14px 20px;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:22px;">🌙</span>
+            <strong style="color:#c9a0ff;">Ночной тариф активен</strong>
+            <span style="color:var(--text-secondary);font-size:13px;">с 23:00 до 06:00 — цены повышены</span>
+        </div>
+    }
+    @if (HasSearched)
+    {
+        <div class="mt-24">
+            <WeatherBanner Weather="@CurrentWeather" />
+        </div>
+    }
+
+    <!-- Loading skeletons -->
+    @if (IsLoading)
+    {
+        <div class="results-grid mt-32">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+    }
+
+    <!-- Results -->
+    @if (!IsLoading && Result is not null)
+    {
+        <div class="mt-32 animate-fade-in">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <div class="section-title">Найдено @Result.Prices.Count(p => p.IsAvailable) сервиса</div>
+
+            </div>
+            <div class="results-grid" style="animation:fadeIn 0.3s ease;">
+                @foreach (var price in Result.Prices.OrderBy(p => p.IsAvailable ? 0 : 1).ThenBy(p => p.Price))
+                {
+                    <div class="provider-card @(price.IsBestDeal ? "best-deal" : "") @(price.IsAvailable ? "" : "unavailable") @(CurrentWeather?.HasSurcharge == true ? "price-card--weather" : "")"
+                         @key="price.ProviderId">
+                        <div style="width:40px;height:40px;flex-shrink:0;border-radius:10px;overflow:hidden;">@GetProviderLogo(price.ProviderSlug)</div>
+                        <div class="provider-info">
+                            <div class="provider-name">@price.ProviderName</div>
+                            <div class="provider-meta">
+                                <span class="provider-class">@TranslateClass(price.VehicleClass)</span>
+
+                                @if (price.SurgeMultiplier > 1.0)
+                                {
+                                    <span class="surge-badge">⚡ @price.SurgeMultiplier.ToString("F1")x</span>
+                                }
+                                @if (CurrentWeather?.HasSurcharge == true && price.IsAvailable)
+                                {
+                                    <span class="price-card__weather-badge">🌧️ +@CurrentWeather.SurchargePercent%</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="provider-rating"><span>⭐</span><span>@price.ProviderRating.ToString("F1")</span></div>
+                        <div class="provider-price">
+                            @if (price.IsAvailable)
+                            {
+                                <div class="price-main">@price.Price.ToString("F0") <span class="price-currency">₽</span></div>
+                                @if (CurrentWeather?.HasSurcharge == true)
+                                {
+                                    var basePrice = Math.Round(price.Price / CurrentWeather.Multiplier, 0);
+                                    var surcharge = price.Price - basePrice;
+                                    <div class="price-card__weather-detail">
+                                        <span class="base-price">Без погоды: @basePrice.ToString("F0") ₽</span>
+                                        <span class="surcharge-amount">Наценка: +@surcharge.ToString("F0") ₽</span>
+                                    </div>
+                                }
+                                @if (price.IsBestDeal) { <div class="best-deal-badge mt-8">Выгоднее всех</div> }
+                                <button class="btn btn-primary btn-sm mt-8"
+                                        style="width:100%; font-size:13px; padding:8px 12px;"
+                                        @onclick="() => OrderTaxi(price)"
+                                        disabled="@(OrderingSlug == price.ProviderSlug + price.VehicleClass)">
+                                    @if (OrderingSlug == price.ProviderSlug + price.VehicleClass)
+                                    {
+                                        <span class="splash-spinner" style="width:14px;height:14px;border-width:2px;margin-right:6px;"></span>
+                                    }
+                                    🚕 Заказать
+                                </button>
+                            }
+                            else { <div style="color:var(--text-muted);font-size:13px;">Недоступно</div> }
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (Result.BestDeal is not null)
+            {
+                <div class="card mt-24" style="background:rgba(0,212,106,0.06);border-color:rgba(0,212,106,0.2);">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:24px;">💡</span>
+                        <div>
+                            <strong>Рекомендация:</strong> Поедь на <strong>@Result.BestDeal.ProviderName</strong> —
+                            самый дешёвый вариант за <strong>@Result.BestDeal.Price.ToString("F0") ₽</strong>,
+                            
+                            @if (CurrentWeather?.HasSurcharge == true)
+                            {
+                                <span style="color:#e65100;"> (включая погодную надбавку +@CurrentWeather.SurchargePercent%)</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="stats-row mt-48">
+        <div class="stat-item"><div class="stat-value">4+</div><div class="stat-label">Сервисов такси</div></div>
+        <div class="stat-item"><div class="stat-value">Онлайн</div><div class="stat-label">Цены в реальном времени</div></div>
+        <div class="stat-item"><div class="stat-value">до 40%</div><div class="stat-label">Экономия на поездках</div></div>
+    </div>
+</div>
+
+@code {
+    private string OriginAddress      = "";
+    private string DestinationAddress = "";
+    private string SelectedClass      = "all";
+    private List<string> OriginSuggests = new();
+    private List<string> DestSuggests   = new();
+    private Dictionary<string, bool> ShowSuggest = new() { ["origin"] = false, ["dest"] = false };
+    private CancellationTokenSource? _suggestCts;
+    private bool IsNightTime => DateTime.Now.Hour >= 23 || DateTime.Now.Hour < 6;
+    private bool   IsLoading          = false;
+    private bool   HasSearched        = false;
+    private string? ErrorMessage;
+    private PriceComparisonResult? Result;
+    private PriceComparisonResult? AllResults;
+    private WeatherInfoDto?        CurrentWeather;
+    private string? PickMode;
+    private string? RouteStats;
+    private string? OrderingSlug;  // ключ "slug+class" пока идёт запрос
+
+    // Координаты по умолчанию: Ишим
+    private double OriginLat = 56.1122, OriginLng = 69.4695;
+    private double DestLat   = 56.6520, DestLng   = 66.2901;
+    private bool _originFromMap = false;  // координаты от клика — не геокодировать
+    private bool _destFromMap   = false;
+
+    private DotNetObjectReference<Index>? _selfRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _selfRef = DotNetObjectReference.Create(this);
+            await Task.Delay(1500);
+            await InitMap();
+        }
+    }
+
+    private async Task InitMap()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("init2GisMap", "route-map",
+                OriginLat, OriginLng, DestLat, DestLng, _selfRef);
+        }
+        catch (Exception ex) { Console.WriteLine($"Map init error: {ex.Message}"); }
+    }
+
+    [JSInvokable]
+    public async Task OnMapClick(string mode, double lat, double lng)
+    {
+        try
+        {
+            // Сразу обновляем координаты и перерисовываем UI
+            if (mode == "origin") { OriginLat = lat; OriginLng = lng; OriginAddress = $"{lat:F4}, {lng:F4}"; _originFromMap = true; }
+            else                  { DestLat   = lat; DestLng   = lng; DestinationAddress = $"{lat:F4}, {lng:F4}"; _destFromMap = true; }
+            PickMode = null;
+            StateHasChanged(); // обновляем поля сразу
+
+            // Потом получаем реальный адрес по точным координатам
+            var address = await JS.InvokeAsync<string>("reverseGeocodeExact", lat, lng);
+            if (mode == "origin") OriginAddress = address;
+            else                  DestinationAddress = address;
+            StateHasChanged();
+
+            await JS.InvokeVoidAsync("updateMapRoute", OriginLat, OriginLng, DestLat, DestLng);
+        }
+        catch (Exception ex) { Console.WriteLine($"OnMapClick error: {ex.Message}"); }
+    }
+
+    private async Task StartPicking(string mode)
+    {
+        PickMode = mode;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("enableMapClickMode", mode);
+    }
+
+    private async Task SearchPrices()
+    {
+        if (string.IsNullOrWhiteSpace(OriginAddress) && string.IsNullOrWhiteSpace(DestinationAddress))
+        {
+            ErrorMessage = "Укажите адреса или выберите точки на карте.";
+            return;
+        }
+
+        IsLoading      = true;
+        HasSearched    = true;
+        ErrorMessage   = null;
+        Result         = null;
+        CurrentWeather = null;
+        StateHasChanged();
+
+        try
+        {
+            // Геокодируем только если адрес введён вручную (не через клик по карте)
+            if (!_originFromMap && !string.IsNullOrWhiteSpace(OriginAddress))
+            {
+                var g = await JS.InvokeAsync<GeoResult>("geocodeAddress", OriginAddress);
+                if (g.Found) { OriginLat = g.Lat; OriginLng = g.Lng; }
+            }
+            if (!_destFromMap && !string.IsNullOrWhiteSpace(DestinationAddress))
+            {
+                var g = await JS.InvokeAsync<GeoResult>("geocodeAddress", DestinationAddress);
+                if (g.Found) { DestLat = g.Lat; DestLng = g.Lng; }
+            }
+
+            // Рисуем маршрут и получаем расстояние (не бросает исключений)
+            RouteInfo? routeInfo = null;
+            try
+            {
+                routeInfo = await JS.InvokeAsync<RouteInfo?>("drawRealRoute",
+                    OriginLng, OriginLat, DestLng, DestLat);
+            }
+            catch (Exception ex) { Console.WriteLine($"Route error: {ex.Message}"); }
+
+            double distanceKm = routeInfo?.DistanceM > 0
+                ? routeInfo.DistanceM / 1000.0
+                : CalcStraightDistance(OriginLat, OriginLng, DestLat, DestLng) * 1.35;
+
+            // Город для погоды из адреса
+            var city = ExtractCity(OriginAddress);
+
+            // Погода и цены параллельно
+            var weatherTask = WeatherClientService.GetWeatherAsync(city);
+            var pricesTask  = PriceService.ComparePricesAsync(
+                new PriceComparisonRequest(
+                    OriginAddress, OriginLat, OriginLng,
+                    DestinationAddress, DestLat, DestLng,
+                    PreferredClass: null,  // всегда запрашиваем все классы, фильтр на клиенте
+                    DistanceKm: distanceKm,
+                    OriginCity: city));
+
+            await Task.WhenAll(weatherTask, pricesTask);
+
+            CurrentWeather = await weatherTask;
+            AllResults     = await pricesTask;
+            ApplyClassFilter();
+
+            if (Result is null)
+                ErrorMessage = "Не удалось получить цены. Попробуйте ещё раз.";
+
+            if (routeInfo != null)
+            {
+                var km   = routeInfo.DistanceM / 1000.0;
+                var mins = (int)(routeInfo.DurationS / 60);
+                RouteStats = $"Расстояние: {km:F1} км · Время в пути: ~{mins} мин";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SearchPrices error: {ex}");
+            ErrorMessage = "Произошла ошибка. Попробуйте ещё раз.";
+        }
+        finally { IsLoading = false; }
+    }
+
+    // "Ишим, ул. Ленина 1" → "Ишим" | "Moscow" → "Moscow"
+    private static string ExtractCity(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return "Moscow";
+        var city = address.Split(',')[0].Trim();
+        return string.IsNullOrWhiteSpace(city) ? "Moscow" : city;
+    }
+
+    private static double CalcStraightDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.Sin(dLat/2)*Math.Sin(dLat/2) +
+                Math.Cos(lat1*Math.PI/180)*Math.Cos(lat2*Math.PI/180)*
+                Math.Sin(dLon/2)*Math.Sin(dLon/2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1-a));
+    }
+
+    private string TranslateClass(string cls) => cls switch
+    {
+        "Economy"  => "Эконом",  "Comfort"  => "Комфорт",
+        "Business" => "Бизнес",  "Premium"  => "Премиум",
+        "Standard" => "Стандарт","XL"       => "XL", _ => cls
+    };
+
+    private void ApplyClassFilter()
+    {
+        if (AllResults is null) { Result = null; return; }
+
+        IEnumerable<ProviderPriceDto> filtered;
+
+        if (SelectedClass == "all" || string.IsNullOrEmpty(SelectedClass))
+        {
+            // При "Все" — показываем самый дешёвый класс от каждого провайдера
+            filtered = AllResults.Prices
+                .Where(p => p.IsAvailable)
+                .GroupBy(p => p.ProviderSlug)
+                .Select(g => g.OrderBy(p => p.Price).First())
+                .ToList();
+        }
+        else
+        {
+            filtered = AllResults.Prices
+                .Where(p => p.IsAvailable && p.VehicleClass == SelectedClass)
+                .ToList();
+        }
+
+        var list      = filtered.OrderBy(p => p.Price).ToList();
+        var bestDeal  = list.FirstOrDefault();
+        var withBest  = list
+            .Select(p => p == bestDeal ? p with { IsBestDeal = true } : p with { IsBestDeal = false })
+            .ToList();
+
+        Result = AllResults with { Prices = withBest, BestDeal = bestDeal };
+        StateHasChanged();
+    }
+
+    private async Task OnAddressInput(ChangeEventArgs e, string field)
+    {
+        var val = e.Value?.ToString() ?? "";
+        if (field == "origin") { OriginAddress = val; _originFromMap = false; }
+        else { DestinationAddress = val; _destFromMap = false; }
+
+        _suggestCts?.Cancel();
+        _suggestCts = new CancellationTokenSource();
+        var cts = _suggestCts;
+
+        if (val.Length < 2) {
+            if (field == "origin") OriginSuggests.Clear();
+            else DestSuggests.Clear();
+            StateHasChanged();
+            return;
+        }
+
+        try {
+            await Task.Delay(300, cts.Token);
+            var suggests = await JS.InvokeAsync<List<string>>("suggestAddress", val);
+            if (!cts.IsCancellationRequested) {
+                if (field == "origin") OriginSuggests = suggests ?? new();
+                else DestSuggests = suggests ?? new();
+                StateHasChanged();
+            }
+        } catch (TaskCanceledException) { }
+    }
+
+    private void SelectSuggest(string address, string field)
+    {
+        if (field == "origin") { OriginAddress = address; OriginSuggests.Clear(); }
+        else { DestinationAddress = address; DestSuggests.Clear(); }
+        ShowSuggest[field] = false;
+        StateHasChanged();
+    }
+
+    // Анимация карточек при смене категории
+    private void ApplyClassFilterAnimated()
+    {
+        Result = null;
+        StateHasChanged();
+        Task.Delay(150).ContinueWith(_ => { ApplyClassFilter(); InvokeAsync(StateHasChanged); });
+    }
+
+    private const string SuggestFieldOrigin = "origin";
+    private const string SuggestFieldDest   = "dest";
+
+    private Task OnOriginInput(ChangeEventArgs e) => OnAddressInput(e, "origin");
+    private Task OnDestInput(ChangeEventArgs e)   => OnAddressInput(e, "dest");
+
+    private void OnOriginFocus() { ShowSuggest["origin"] = true; }
+    private void OnDestFocus()   { ShowSuggest["dest"]   = true; }
+
+    private void OnOriginBlur()
+        => Task.Delay(200).ContinueWith(_ => { ShowSuggest["origin"] = false; InvokeAsync(StateHasChanged); });
+    private void OnDestBlur()
+        => Task.Delay(200).ContinueWith(_ => { ShowSuggest["dest"] = false; InvokeAsync(StateHasChanged); });
+
+    private MarkupString GetProviderLogo(string slug)
+    {
+        return slug switch
+        {
+            // Яндекс Go — жёлтый фон, курсивный жирный "Go" как на логотипе
+            "yandex" => new MarkupString("<svg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' rx='10' fill='#FFDD00'/><text x='20' y='28' font-size='18' font-weight='900' font-style='italic' fill='#1A1A1A' text-anchor='middle' font-family='Arial Black,Arial,sans-serif'>Go</text></svg>"),
+            // Uber — чёрный фон, белый текст
+            "uber"   => new MarkupString("<svg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' rx='10' fill='#000'/><text x='20' y='25' font-size='13' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial,sans-serif'>Uber</text></svg>"),
+            // Омега
+            "omega"  => new MarkupString("<svg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' rx='10' fill='#FF6B00'/><text x='20' y='29' font-size='22' font-weight='bold' fill='white' text-anchor='middle' font-family='Arial,sans-serif'>&#937;</text></svg>"),
+            // maxim — жёлтый, строчные буквы, красная 'a'
+            "maksim" => new MarkupString("<svg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' rx='10' fill='#FFD600'/><text y='27' font-size='11' font-weight='900' font-family='Arial Black,Arial,sans-serif'><tspan x='3' fill='#1A1A1A'>m</tspan><tspan fill='#E8001C'>a</tspan><tspan fill='#1A1A1A'>xim</tspan></text></svg>"),
+            _ => new MarkupString("<svg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' rx='10' fill='#444'/><text x='20' y='27' font-size='18' fill='white' text-anchor='middle' font-family='Arial'>?</text></svg>")
+        };
+    }
+
+    // ─── Заказ такси ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Открывает официальный сайт провайдера с предзаполненным маршрутом,
+    /// одновременно фиксируя факт заказа в истории (если пользователь авторизован).
+    /// </summary>
+    private async Task OrderTaxi(ProviderPriceDto price)
+    {
+        OrderingSlug = price.ProviderSlug + price.VehicleClass;
+        StateHasChanged();
+
+        try
+        {
+            // 1. Фиксируем заказ в истории (только для авторизованных пользователей)
+            var isAuth = await AuthService.IsAuthenticatedAsync();
+            if (isAuth && Result?.RideRequestId != Guid.Empty)
+            {
+                try
+                {
+                    await Http.PostAsJsonAsync(
+                        $"/api/rides/{Result!.RideRequestId}/order",
+                        new { ProviderName = price.ProviderName, ProviderSlug = price.ProviderSlug,
+                              VehicleClass = price.VehicleClass, Price = price.Price });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Order] Не удалось зафиксировать заказ: {ex.Message}");
+                    // Не блокируем — всё равно открываем сайт провайдера
+                }
+            }
+
+            // 2. Формируем глубокую ссылку на официальный сайт провайдера
+            var url = GetProviderOrderUrl(price.ProviderSlug, OriginAddress, DestinationAddress,
+                OriginLat, OriginLng, DestLat, DestLng);
+
+            // 3. Открываем в новой вкладке
+            await JS.InvokeVoidAsync("open", url, "_blank");
+
+            Toast.ShowSuccess($"Переходим к {price.ProviderName}. Поездка зафиксирована в истории.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OrderTaxi] Error: {ex.Message}");
+            Toast.ShowError("Не удалось открыть сайт провайдера");
+        }
+        finally
+        {
+            OrderingSlug = null;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Возвращает URL на официальный сайт такси-провайдера.
+    /// Где API позволяет — передаёт координаты маршрута в query-параметрах.
+    /// </summary>
+    private static string GetProviderOrderUrl(
+        string slug, string originAddr, string destAddr,
+        double oLat, double oLng, double dLat, double dLng)
+    {
+        var originEnc = Uri.EscapeDataString(originAddr);
+        var destEnc   = Uri.EscapeDataString(destAddr);
+
+        return slug switch
+        {
+            // Яндекс Go — поддерживает передачу маршрута через URL
+            "yandex" => $"https://taxi.yandex.ru/route?utm_source=taxicompare" +
+                        $"&start-lat={oLat:F6}&start-lon={oLng:F6}" +
+                        $"&end-lat={dLat:F6}&end-lon={dLng:F6}" +
+                        $"&ref=taxicompare",
+
+            // Uber — поддерживает deep link с координатами
+            "uber"   => $"https://m.uber.com/ul/?" +
+                        $"action=setPickup" +
+                        $"&pickup[latitude]={oLat:F6}&pickup[longitude]={oLng:F6}" +
+                        $"&pickup[nickname]={originEnc}" +
+                        $"&dropoff[latitude]={dLat:F6}&dropoff[longitude]={dLng:F6}" +
+                        $"&dropoff[nickname]={destEnc}",
+
+            // Омега Такси — официальный сайт (нет публичного API для deep link)
+            "omega"  => "https://omega-taxi.ru/",
+
+            // Такси Максим — официальный сайт
+            "maksim" => $"https://taximaxim.com/",
+
+            _        => "https://taxicompare.ru/"
+        };
+    }
+
+    public void Dispose() => _selfRef?.Dispose();
+
+    private record GeoResult(
+        [property: System.Text.Json.Serialization.JsonPropertyName("found")] bool Found,
+        [property: System.Text.Json.Serialization.JsonPropertyName("lat")]   double Lat,
+        [property: System.Text.Json.Serialization.JsonPropertyName("lng")]   double Lng);
+    private record RouteInfo(
+        [property: System.Text.Json.Serialization.JsonPropertyName("DistanceM")] double DistanceM,
+        [property: System.Text.Json.Serialization.JsonPropertyName("DurationS")] double DurationS);
+}

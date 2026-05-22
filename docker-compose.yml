@@ -1,0 +1,96 @@
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: taxicompare_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: taxicompare
+      POSTGRES_USER: taxi
+      POSTGRES_PASSWORD: taxi123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taxi -d taxicompare"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: taxicompare_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Gateway API ───────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: src/Gateway/Dockerfile
+    container_name: taxicompare_gateway
+    restart: unless-stopped
+    ports:
+      - "7000:8080"
+      - "7001:8081"   # HTTPS
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Postgres=Host=postgres;Database=taxicompare;Username=taxi;Password=taxi123
+      - ConnectionStrings__Redis=redis:6379
+      - Jwt__Secret=PRODUCTION_SECRET_CHANGE_THIS_TO_32CHARS!!
+      - Jwt__Issuer=TaxiCompare
+      - Jwt__Audience=TaxiCompare.Client
+      - Weather__ApiKey=fb68ac62d89a2096cb33f134cedd832f
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Blazor Frontend ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: src/Frontend/TaxiCompare.Blazor/Dockerfile
+    container_name: taxicompare_frontend
+    restart: unless-stopped
+    ports:
+      - "5000:80"
+    depends_on:
+      - gateway
+
+  # ── PgAdmin (dev only) ────────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: taxicompare_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@taxicompare.dev
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:

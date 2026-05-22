@@ -1,0 +1,47 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Gateway", "src\Gateway\TaxiCompare.Gateway\TaxiCompare.Gateway.csproj", "{A1B2C3D4-0001-0000-0000-000000000001}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Identity.API", "src\Services\IdentityService\TaxiCompare.Identity.API\TaxiCompare.Identity.API.csproj", "{A1B2C3D4-0002-0000-0000-000000000002}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Identity.Application", "src\Services\IdentityService\TaxiCompare.Identity.Application\TaxiCompare.Identity.Application.csproj", "{A1B2C3D4-0003-0000-0000-000000000003}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Identity.Domain", "src\Services\IdentityService\TaxiCompare.Identity.Domain\TaxiCompare.Identity.Domain.csproj", "{A1B2C3D4-0004-0000-0000-000000000004}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Identity.Infrastructure", "src\Services\IdentityService\TaxiCompare.Identity.Infrastructure\TaxiCompare.Identity.Infrastructure.csproj", "{A1B2C3D4-0005-0000-0000-000000000005}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Pricing.API", "src\Services\PricingService\TaxiCompare.Pricing.API\TaxiCompare.Pricing.API.csproj", "{A1B2C3D4-0006-0000-0000-000000000006}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Pricing.Application", "src\Services\PricingService\TaxiCompare.Pricing.Application\TaxiCompare.Pricing.Application.csproj", "{A1B2C3D4-0007-0000-0000-000000000007}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Pricing.Domain", "src\Services\PricingService\TaxiCompare.Pricing.Domain\TaxiCompare.Pricing.Domain.csproj", "{A1B2C3D4-0008-0000-0000-000000000008}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Pricing.Infrastructure", "src\Services\PricingService\TaxiCompare.Pricing.Infrastructure\TaxiCompare.Pricing.Infrastructure.csproj", "{A1B2C3D4-0009-0000-0000-000000000009}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Aggregator.API", "src\Services\AggregatorService\TaxiCompare.Aggregator.API\TaxiCompare.Aggregator.API.csproj", "{A1B2C3D4-0010-0000-0000-000000000010}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Aggregator.Application", "src\Services\AggregatorService\TaxiCompare.Aggregator.Application\TaxiCompare.Aggregator.Application.csproj", "{A1B2C3D4-0011-0000-0000-000000000011}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Aggregator.Infrastructure", "src\Services\AggregatorService\TaxiCompare.Aggregator.Infrastructure\TaxiCompare.Aggregator.Infrastructure.csproj", "{A1B2C3D4-0012-0000-0000-000000000012}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Notifications.API", "src\Services\NotificationService\TaxiCompare.Notifications.API\TaxiCompare.Notifications.API.csproj", "{A1B2C3D4-0013-0000-0000-000000000013}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Notifications.Infrastructure", "src\Services\NotificationService\TaxiCompare.Notifications.Infrastructure\TaxiCompare.Notifications.Infrastructure.csproj", "{A1B2C3D4-0014-0000-0000-000000000014}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.SharedContracts", "src\Shared\TaxiCompare.SharedContracts\TaxiCompare.SharedContracts.csproj", "{A1B2C3D4-0015-0000-0000-000000000015}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.Blazor", "src\Frontend\TaxiCompare.Blazor\TaxiCompare.Blazor.csproj", "{A1B2C3D4-0016-0000-0000-000000000016}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.UnitTests", "tests\TaxiCompare.UnitTests\TaxiCompare.UnitTests.csproj", "{A1B2C3D4-0017-0000-0000-000000000017}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaxiCompare.IntegrationTests", "tests\TaxiCompare.IntegrationTests\TaxiCompare.IntegrationTests.csproj", "{A1B2C3D4-0018-0000-0000-000000000018}"
+EndProject
+Global
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
+        Debug|Any CPU = Debug|Any CPU
+        Release|Any CPU = Release|Any CPU
+    EndGlobalSection
+EndGlobal

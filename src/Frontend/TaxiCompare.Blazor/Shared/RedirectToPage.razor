@@ -1,0 +1,10 @@
+@inject NavigationManager Nav
+
+@code {
+    [Parameter] public string Page { get; set; } = "/login";
+
+    protected override void OnInitialized()
+    {
+        Nav.NavigateTo(Page);
+    }
+}

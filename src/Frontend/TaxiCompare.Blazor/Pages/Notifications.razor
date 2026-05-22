@@ -1,0 +1,78 @@
+@page "/notifications"
+@attribute [Authorize]
+@inject INotificationService NotifService
+@inject IToastService Toast
+
+<PageTitle>Уведомления – ТаксиСравни</PageTitle>
+
+<div class="app-container" style="padding-top:48px; padding-bottom:80px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h1 class="section-title" style="font-size:32px;">Уведомления</h1>
+        @if (NotifList.Any(n => !n.IsRead))
+        {
+            <span class="notif-badge">@NotifList.Count(n => !n.IsRead) новых</span>
+        }
+    </div>
+    <p class="text-secondary mb-32">Оповещения о ценах и системные уведомления</p>
+
+    @if (IsLoading)
+    {
+        @for (int i = 0; i < 4; i++) { <div class="skeleton skeleton-card"></div> }
+    }
+    else if (!NotifList.Any())
+    {
+        <div class="card text-center" style="padding:64px 24px;">
+            <div style="font-size:48px; margin-bottom:16px;">🔔</div>
+            <div class="section-title">Уведомлений нет</div>
+            <p class="text-secondary mt-8">Оповещения о снижении цен появятся здесь</p>
+        </div>
+    }
+    else
+    {
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            @foreach (var notif in NotifList.OrderByDescending(n => n.CreatedAt))
+            {
+                <div class="card animate-fade-up"
+                     style="@(!notif.IsRead ? "border-color:rgba(0,212,106,0.3); background:rgba(0,212,106,0.04);" : "opacity:0.7")"
+                     @onclick="() => DoMarkRead(notif)">
+                    <div style="display:grid; grid-template-columns:auto 1fr auto; gap:16px; align-items:start;">
+                        <div style="font-size:22px;">
+                            @(notif.Type switch { "PriceDrop" => "📉", "PriceAlert" => "⚡", "Promotion" => "🎁", _ => "📢" })
+                        </div>
+                        <div>
+                            <div style="font-weight:600;">@notif.Title</div>
+                            <div style="color:var(--text-secondary); font-size:14px; margin-top:4px;">@notif.Message</div>
+                            <div style="color:var(--text-muted); font-size:12px; margin-top:8px;">
+                                @notif.CreatedAt.ToLocalTime().ToString("dd MMM, HH:mm")
+                            </div>
+                        </div>
+                        @if (!notif.IsRead)
+                        {
+                            <div style="width:8px; height:8px; border-radius:50%; background:var(--accent); margin-top:6px;"></div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationDto> NotifList = new();
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { NotifList = await NotifService.GetNotificationsAsync(); }
+        catch { Toast.ShowError("Не удалось загрузить уведомления"); }
+        finally { IsLoading = false; }
+    }
+
+    private async Task DoMarkRead(NotificationDto notif)
+    {
+        if (notif.IsRead) return;
+        await NotifService.MarkReadAsync(notif.Id);
+        var idx = NotifList.IndexOf(notif);
+        NotifList[idx] = notif with { IsRead = true };
+    }
+}

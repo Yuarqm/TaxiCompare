@@ -1,0 +1,167 @@
+// 2GIS MapGL JS API
+// https://docs.2gis.com/mapgl/objects/geometries
+
+const MAPGL_KEY = 'd979b4fb-b004-4630-ab3d-f554d7c21fc9';
+let currentMap = null;
+let mapObjects = []; // track all objects for cleanup
+let clickMode = null; // 'origin' | 'dest' | null
+let dotnetRef = null; // Blazor interop reference
+
+function destroyMapObjects() {
+    mapObjects.forEach(obj => { try { obj.destroy(); } catch(e){} });
+    mapObjects = [];
+}
+
+function loadMapGL(callback) {
+    if (window.mapgl) { callback(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://mapgl.2gis.com/api/js/v1';
+    script.onload = callback;
+    document.head.appendChild(script);
+}
+
+// Initialize map with route display
+window.init2GisMap = function(containerId, originLat, originLng, destLat, destLng, blazorRef) {
+    dotnetRef = blazorRef;
+    loadMapGL(() => {
+        if (currentMap) {
+            try { currentMap.destroy(); } catch(e) {}
+            currentMap = null;
+            mapObjects = [];
+        }
+
+        const centerLng = (originLng + destLng) / 2;
+        const centerLat = (originLat + destLat) / 2;
+
+        currentMap = new mapgl.Map(containerId, {
+            key: MAPGL_KEY,
+            center: [centerLng, centerLat],
+            zoom: 9
+        });
+
+        currentMap.on('load', () => {
+            drawRoute(originLat, originLng, destLat, destLng);
+
+            // Click handler for picking points
+            currentMap.on('click', (e) => {
+                if (!clickMode || !dotnetRef) return;
+                const lng = e.lngLat[0];
+                const lat = e.lngLat[1];
+                dotnetRef.invokeMethodAsync('OnMapClick', clickMode, lat, lng);
+                clickMode = null;
+                currentMap.getCanvas().style.cursor = '';
+            });
+        });
+    });
+};
+
+function drawRoute(originLat, originLng, destLat, destLng) {
+    destroyMapObjects();
+
+    // Route line (with outline for visibility)
+    const routeStroke = new mapgl.Polyline(currentMap, {
+        coordinates: [[originLng, originLat], [destLng, destLat]],
+        width: 8,
+        color: '#ffffff',
+        zIndex: 1
+    });
+    const routeLine = new mapgl.Polyline(currentMap, {
+        coordinates: [[originLng, originLat], [destLng, destLat]],
+        width: 5,
+        color: '#00D46A',
+        zIndex: 2
+    });
+
+    // Marker A — origin
+    const markerA = new mapgl.CircleMarker(currentMap, {
+        coordinates: [originLng, originLat],
+        radius: 14,
+        color: '#00D46A',
+        strokeWidth: 2,
+        strokeColor: '#ffffff',
+        zIndex: 5
+    });
+    const labelA = new mapgl.Label(currentMap, {
+        coordinates: [originLng, originLat],
+        text: 'А',
+        fontSize: 13,
+        color: '#ffffff',
+        zIndex: 6
+    });
+
+    // Marker B — destination
+    const markerB = new mapgl.CircleMarker(currentMap, {
+        coordinates: [destLng, destLat],
+        radius: 14,
+        color: '#FF4B4B',
+        strokeWidth: 2,
+        strokeColor: '#ffffff',
+        zIndex: 3
+    });
+    const labelB = new mapgl.Label(currentMap, {
+        coordinates: [destLng, destLat],
+        text: 'Б',
+        fontSize: 13,
+        color: '#ffffff',
+        zIndex: 4
+    });
+
+    mapObjects = [routeStroke, routeLine, markerA, labelA, markerB, labelB];
+
+    // Fit bounds to show both points
+    const pad = Math.max(0.03, Math.abs(originLat - destLat) * 0.2);
+    currentMap.fitBounds(
+        [
+            Math.min(originLng, destLng) - pad,
+            Math.min(originLat, destLat) - pad,
+            Math.max(originLng, destLng) + pad,
+            Math.max(originLat, destLat) + pad
+        ],
+        { padding: 60, maxZoom: 14 }
+    );
+}
+
+// Called from Blazor to update route after point selection
+window.updateMapRoute = function(originLat, originLng, destLat, destLng) {
+    if (!currentMap) return;
+    drawRoute(originLat, originLng, destLat, destLng);
+};
+
+// Enable click mode for selecting origin/destination on map
+window.enableMapClickMode = function(mode) {
+    clickMode = mode; // 'origin' or 'dest'
+    if (currentMap) {
+        currentMap.getCanvas().style.cursor = 'crosshair';
+    }
+};
+
+// Geocode address via 2GIS API
+window.geocodeAddress = async function(address) {
+    try {
+        const q = encodeURIComponent(address);
+        const url = `https://catalog.api.2gis.com/3.0/items/geocode?q=${q}&fields=items.point&key=${MAPGL_KEY}`;
+        const resp = await fetch(url);
+        if (!resp.ok) return { found: false, lat: 0, lng: 0 };
+        const data = await resp.json();
+        const items = data.result?.items;
+        if (items && items.length > 0 && items[0].point) {
+            return { found: true, lat: items[0].point.lat, lng: items[0].point.lon };
+        }
+    } catch(e) { console.warn('Geocode error:', e); }
+    return { found: false, lat: 0, lng: 0 };
+};
+
+// Reverse geocode coordinates to address
+window.reverseGeocode = async function(lat, lng) {
+    try {
+        const url = `https://catalog.api.2gis.com/3.0/items/geocode?q=${lat},${lng}&fields=items.full_name&key=${MAPGL_KEY}`;
+        const resp = await fetch(url);
+        if (!resp.ok) return '';
+        const data = await resp.json();
+        const items = data.result?.items;
+        if (items && items.length > 0) {
+            return items[0].full_name || items[0].name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        }
+    } catch(e) {}
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+};

@@ -1,0 +1,82 @@
+@page "/register"
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+@inject IToastService Toast
+
+<PageTitle>Регистрация – ТаксиСравни</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card card card-glass animate-fade-up">
+        <h1 class="auth-title">Создать аккаунт</h1>
+        <p class="auth-subtitle">Начните сравнивать цены и экономить на каждой поездке</p>
+
+        @if (!string.IsNullOrEmpty(Error))
+        {
+            <div class="badge badge-danger mb-16" style="width:100%; justify-content:center;">@Error</div>
+        }
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div class="form-group">
+                <label>Имя</label>
+                <input class="form-input" type="text" placeholder="Иван" @bind="FirstName" />
+            </div>
+            <div class="form-group">
+                <label>Фамилия</label>
+                <input class="form-input" type="text" placeholder="Иванов" @bind="LastName" />
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Электронная почта</label>
+            <input class="form-input" type="email" placeholder="you@example.com" @bind="Email" />
+        </div>
+        <div class="form-group">
+            <label>Пароль</label>
+            <input class="form-input" type="password" placeholder="Минимум 8 символов" @bind="Password" />
+        </div>
+        <div class="form-group">
+            <label>Номер телефона <span class="text-muted">(необязательно)</span></label>
+            <input class="form-input" type="tel" placeholder="+7 999 123-45-67" @bind="Phone" />
+        </div>
+
+        <button class="btn btn-primary" style="width:100%;" @onclick="DoRegister" disabled="@IsLoading">
+            @if (IsLoading) { <span>Регистрация...</span> } else { <span>Создать аккаунт бесплатно</span> }
+        </button>
+
+        <div class="text-center mt-16">
+            <span class="text-secondary" style="font-size:14px;">Уже есть аккаунт? </span>
+            <a href="/login" class="text-accent" style="font-size:14px; font-weight:600;">Войти</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string Email = "", Password = "", FirstName = "", LastName = "", Phone = "";
+    private string? Error;
+    private bool IsLoading;
+
+    private async Task DoRegister()
+    {
+        if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password) ||
+            string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(LastName))
+        {
+            Error = "Пожалуйста, заполните все обязательные поля.";
+            return;
+        }
+        IsLoading = true;
+        Error = null;
+        try
+        {
+            var req = new RegisterRequest(Email, Password, FirstName, LastName, string.IsNullOrEmpty(Phone) ? null : Phone);
+            var result = await AuthService.RegisterAsync(req);
+            IsLoading = false;
+            if (result is null) { Error = "Сервер недоступен. Проверьте подключение."; }
+            else { Toast.ShowSuccess("Аккаунт создан! Добро пожаловать 🎉"); Nav.NavigateTo("/"); }
+        }
+        catch (Exception ex)
+        {
+            IsLoading = false;
+            Error = $"Ошибка: {ex.Message}";
+        }
+    }
+}

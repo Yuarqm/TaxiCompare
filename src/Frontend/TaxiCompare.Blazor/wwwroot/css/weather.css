@@ -1,0 +1,104 @@
+/* weather.css — dark theme compatible */
+
+.weather-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    border: 1px solid transparent;
+    transition: background 0.3s;
+    backdrop-filter: blur(8px);
+}
+
+.weather-banner--ok {
+    background: rgba(0, 212, 106, 0.08);
+    border-color: rgba(0, 212, 106, 0.25);
+    color: #4cdb91;
+}
+
+.weather-banner--info {
+    background: rgba(41, 182, 246, 0.08);
+    border-color: rgba(41, 182, 246, 0.25);
+    color: #80d8ff;
+}
+
+.weather-banner--warning {
+    background: rgba(255, 184, 48, 0.08);
+    border-color: rgba(255, 184, 48, 0.3);
+    color: #ffcc02;
+}
+
+.weather-banner--danger {
+    background: rgba(255, 75, 75, 0.1);
+    border-color: rgba(255, 75, 75, 0.3);
+    color: #ff8a80;
+}
+
+.weather-icon { font-size: 28px; flex-shrink: 0; }
+
+.weather-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.weather-surcharge {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.surcharge-label {
+    font-size: 11px;
+    opacity: 0.6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.surcharge-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+/* ── Карточка цены с погодной наценкой ── */
+.price-card--weather { border-left: 3px solid rgba(255, 152, 0, 0.6); }
+
+.price-card__weather-badge {
+    background: rgba(255, 152, 0, 0.12);
+    color: #ffb74d;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.price-card__weather-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255,255,255,0.1);
+    font-size: 12px;
+}
+
+.price-card__weather-detail .base-price {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.price-card__weather-detail .surcharge-amount {
+    color: #ffb74d;
+    font-weight: 600;
+}
+
+@media (max-width: 600px) {
+    .weather-banner { flex-wrap: wrap; }
+    .weather-surcharge { align-items: flex-start; }
+}

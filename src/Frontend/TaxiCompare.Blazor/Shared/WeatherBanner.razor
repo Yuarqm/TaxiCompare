@@ -1,0 +1,46 @@
+@using TaxiCompare.Blazor.Services
+
+@if (Weather is not null && Weather.HasSurcharge)
+{
+    <div class="weather-banner @BannerClass">
+        <span class="weather-icon">@Icon</span>
+        <div class="weather-info">
+            <strong>@Weather.ConditionRu в @Weather.City</strong>
+            <span>@Weather.TemperatureCelsius.ToString("F0")°C · ветер @Weather.WindSpeedKmh.ToString("F0") км/ч</span>
+        </div>
+        <div class="weather-surcharge">
+            <span class="surcharge-label">Надбавка за погоду</span>
+            <span class="surcharge-value">+@Weather.SurchargePercent%</span>
+        </div>
+    </div>
+}
+else if (Weather is not null)
+{
+    <div class="weather-banner weather-banner--ok">
+        <span class="weather-icon">☀️</span>
+        <span>@Weather.ConditionRu · @Weather.TemperatureCelsius.ToString("F0")°C — надбавок нет</span>
+    </div>
+}
+
+@code {
+    [Parameter] public WeatherInfoDto? Weather { get; set; }
+
+    private string BannerClass => Weather?.Condition switch
+    {
+        "Thunderstorm" or "Blizzard" => "weather-banner--danger",
+        "Snow" or "Rain"             => "weather-banner--warning",
+        _                            => "weather-banner--info"
+    };
+
+    private string Icon => Weather?.Condition switch
+    {
+        "Clear"        => "☀️",
+        "Cloudy"       => "☁️",
+        "Rain"         => "🌧️",
+        "Snow"         => "❄️",
+        "Thunderstorm" => "⛈️",
+        "Blizzard"     => "🌨️",
+        "Fog"          => "🌫️",
+        _              => "🌡️"
+    };
+}
