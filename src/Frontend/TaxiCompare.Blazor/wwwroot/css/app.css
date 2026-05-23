@@ -213,6 +213,9 @@ body::before {
 
 .provider-price { text-align: right; }
 .provider-price .btn { min-width: 120px; width: 120px; }
+
+/* Скрываем иконку закрытия в тост-уведомлениях */
+.blazored-toast-close-icon { display: none !important; }
 .price-main { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
 .price-currency { font-size: 14px; color: var(--text-muted); }
 .best-deal-badge {
