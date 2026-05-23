@@ -1,0 +1,81 @@
+@page "/favorites"
+@attribute [Authorize]
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject IToastService Toast
+
+<PageTitle>Избранное – ТаксиСравни</PageTitle>
+
+<div class="app-container" style="padding-top:48px; padding-bottom:80px;">
+    <h1 class="section-title" style="font-size:32px;">Избранное</h1>
+    <p class="text-secondary mb-32">Сохранённые маршруты для быстрого сравнения</p>
+
+    @if (!Routes.Any())
+    {
+        <div class="card text-center" style="padding:64px 24px;">
+            <div style="font-size:48px;margin-bottom:16px;">★</div>
+            <div class="section-title">Нет избранных маршрутов</div>
+            <p class="text-secondary mt-8">Добавляйте маршруты из истории поездок нажав на звёздочку</p>
+            <a href="/history" class="btn btn-primary mt-24">Перейти в историю</a>
+        </div>
+    }
+    else
+    {
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            @foreach (var r in Routes)
+            {
+                <div class="card animate-fade-up"
+                     style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+                    <div style="font-size:20px;flex-shrink:0;">🗺</div>
+
+                    <div style="flex:1;">
+                        <div style="font-weight:600;font-size:15px;">
+                            @r.Origin → @r.Dest
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+                        <button class="btn btn-primary btn-sm"
+                                @onclick="() => GoSearch(r)">
+                            Сравнить
+                        </button>
+                        <button @onclick="() => Remove(r)"
+                                style="background:none;border:none;cursor:pointer;font-size:20px;color:#FFD600;padding:0;"
+                                title="Убрать из избранного">
+                            ★
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<FavRoute> Routes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Routes = await LocalStorage.GetItemAsync<List<FavRoute>>("favorite_routes") ?? new();
+        }
+        catch { Routes = new(); }
+    }
+
+    private void GoSearch(FavRoute r)
+    {
+        var url = $"/?from={Uri.EscapeDataString(r.Origin)}&to={Uri.EscapeDataString(r.Dest)}";
+        Nav.NavigateTo(url);
+    }
+
+    private async Task Remove(FavRoute r)
+    {
+        Routes.RemoveAll(x => x.Origin == r.Origin && x.Dest == r.Dest);
+        await LocalStorage.SetItemAsync("favorite_routes", Routes);
+        Toast.ShowSuccess("Убрано из избранного");
+        StateHasChanged();
+    }
+
+    record FavRoute(string Origin, string Dest);
+}
