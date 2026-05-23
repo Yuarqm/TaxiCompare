@@ -187,13 +187,22 @@
         try
         {
             var token = await LocalStorage.GetItemAsync<string>("auth_token");
+            Console.WriteLine($"[History] token from storage: '{(token?.Length > 10 ? token[..10] + "..." : token ?? "NULL")}'");
 
             using var request = new HttpRequestMessage(HttpMethod.Get, "/api/rides");
             if (!string.IsNullOrEmpty(token))
+            {
                 request.Headers.Authorization =
                     new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                Console.WriteLine($"[History] Authorization header set: Bearer {token[..10]}...");
+            }
+            else
+            {
+                Console.WriteLine("[History] TOKEN IS NULL OR EMPTY — request will fail with 401");
+            }
 
             var response = await Http.SendAsync(request);
+            Console.WriteLine($"[History] response status: {response.StatusCode}");
             response.EnsureSuccessStatusCode();
             Rides = await response.Content.ReadFromJsonAsync<List<RideHistoryItem>>() ?? new();
             ApplyFilter();
