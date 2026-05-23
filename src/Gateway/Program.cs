@@ -187,8 +187,24 @@ try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<TaxiCompareDbContext>();
-    // MigrateAsync применяет все pending-миграции (включая новые поля OrderedAt и т.д.)
-    await db.Database.MigrateAsync();
+    // Создаём таблицы если их нет
+    await db.Database.EnsureCreatedAsync();
+
+    // Добавляем новые колонки напрямую через Npgsql — IF NOT EXISTS гарантирует идемпотентность
+    var conn = db.Database.GetDbConnection();
+    await conn.OpenAsync();
+    using var cmd = conn.CreateCommand();
+    cmd.CommandText = @"
+        ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""OrderedProviderName"" text NULL;
+        ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""OrderedProviderSlug"" text NULL;
+        ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""OrderedVehicleClass"" text NULL;
+        ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""OrderedPrice"" numeric NULL;
+        ALTER TABLE ""RideRequests"" ADD COLUMN IF NOT EXISTS ""OrderedAt"" timestamp with time zone NULL;
+    ";
+    await cmd.ExecuteNonQueryAsync();
+    await conn.CloseAsync();
+    Console.WriteLine("[STARTUP] DB columns ensured.");
+
     if (!db.Providers.Any())
     {
         db.Providers.AddRange(
