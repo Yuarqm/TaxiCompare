@@ -312,9 +312,10 @@
     {
         if (firstRender)
         {
-            // Читаем параметры ?from=&to= (кнопка «Повторить» из истории)
+            // Читаем параметры ?from=&to= (кнопка «Сравнить» из избранного / «Повторить» из истории)
             var uri = new Uri(Nav.Uri);
             var query = uri.Query.TrimStart('?');
+            bool hasParams = false;
             if (!string.IsNullOrEmpty(query))
             {
                 foreach (var part in query.Split('&'))
@@ -324,11 +325,12 @@
                     {
                         var key = Uri.UnescapeDataString(kv[0]);
                         var val = Uri.UnescapeDataString(kv[1]);
-                        if (key == "from" && !string.IsNullOrEmpty(val)) OriginAddress = val;
-                        if (key == "to"   && !string.IsNullOrEmpty(val)) DestinationAddress = val;
+                        if (key == "from" && !string.IsNullOrEmpty(val)) { OriginAddress = val; hasParams = true; }
+                        if (key == "to"   && !string.IsNullOrEmpty(val)) { DestinationAddress = val; hasParams = true; }
                     }
                 }
             }
+            if (hasParams) StateHasChanged();
 
             _selfRef = DotNetObjectReference.Create(this);
             await LoadFavoriteRoutes();
