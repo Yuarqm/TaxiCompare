@@ -152,7 +152,6 @@ public interface IPriceService
 public class PriceService : IPriceService
 {
     private readonly HttpClient _http;
-    private readonly HttpClient _http;
     private readonly ILocalStorageService _storage;
 
     public PriceService(HttpClient http, ILocalStorageService storage)
