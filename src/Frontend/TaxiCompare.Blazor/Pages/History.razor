@@ -175,6 +175,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Читаем фильтр из URL (?filter=fav)
+        var uri = new Uri(Nav.Uri);
+        var query = uri.Query.TrimStart('?');
+        foreach (var part in query.Split('&'))
+        {
+            var kv = part.Split('=', 2);
+            if (kv.Length == 2 && kv[0] == "filter")
+                ActiveFilter = Uri.UnescapeDataString(kv[1]);
+        }
+
         await LoadFavorites();
         await LoadRides();
     }

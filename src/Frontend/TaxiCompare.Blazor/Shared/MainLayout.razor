@@ -19,9 +19,8 @@
                 <a href="/analytics" class="nav-link">Аналитика</a>
                 <AuthorizeView>
                     <Authorized>
-                        <a href="/history" class="nav-link">
-                            История
-                        </a>
+                        <a href="/history" class="nav-link">История</a>
+                        <a href="/history?filter=fav" class="nav-link">Избранное</a>
                         <button @onclick="Logout" class="btn btn-secondary btn-sm">Выйти</button>
                     </Authorized>
                     <NotAuthorized>
