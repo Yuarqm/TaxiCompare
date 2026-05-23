@@ -212,6 +212,7 @@ body::before {
 .provider-rating { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-secondary); }
 
 .provider-price { text-align: right; }
+.provider-price .btn { min-width: 120px; width: 120px; }
 .price-main { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
 .price-currency { font-size: 14px; color: var(--text-muted); }
 .best-deal-badge {

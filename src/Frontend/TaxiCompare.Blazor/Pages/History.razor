@@ -227,8 +227,27 @@
 
     private async Task ToggleFavorite(Guid id)
     {
-        if (FavoriteIds.Contains(id)) FavoriteIds.Remove(id);
-        else FavoriteIds.Add(id);
+        var ride = Rides.FirstOrDefault(r => r.Id == id);
+        if (FavoriteIds.Contains(id))
+        {
+            FavoriteIds.Remove(id);
+            // Убираем маршрут из кэша
+            var routes = await GetFavoriteRoutes();
+            routes.RemoveAll(r => r.Origin == ride?.OriginAddress && r.Dest == ride?.DestinationAddress);
+            await LocalStorage.SetItemAsync("favorite_routes", routes);
+        }
+        else
+        {
+            FavoriteIds.Add(id);
+            // Сохраняем маршрут в кэш для быстрого доступа с главной
+            if (ride is not null)
+            {
+                var routes = await GetFavoriteRoutes();
+                if (!routes.Any(r => r.Origin == ride.OriginAddress && r.Dest == ride.DestinationAddress))
+                    routes.Add(new FavoriteRouteCache(ride.OriginAddress, ride.DestinationAddress));
+                await LocalStorage.SetItemAsync("favorite_routes", routes);
+            }
+        }
 
         try { await LocalStorage.SetItemAsync("favorite_rides", FavoriteIds.ToList()); }
         catch { }
@@ -236,6 +255,14 @@
         ApplyFilter();
         Toast.ShowSuccess(FavoriteIds.Contains(id) ? "Добавлено в избранное" : "Убрано из избранного");
     }
+
+    private async Task<List<FavoriteRouteCache>> GetFavoriteRoutes()
+    {
+        try { return await LocalStorage.GetItemAsync<List<FavoriteRouteCache>>("favorite_routes") ?? new(); }
+        catch { return new(); }
+    }
+
+    record FavoriteRouteCache(string Origin, string Dest);
 
     private void OnSearch(ChangeEventArgs e)
     {

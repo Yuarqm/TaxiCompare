@@ -6,6 +6,7 @@
 @inject NavigationManager Nav
 @inject IAuthService AuthService
 @inject HttpClient Http
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @implements IDisposable
 
 <PageTitle>ТаксиСравни – Найди самую выгодную поездку</PageTitle>
@@ -124,6 +125,24 @@
             <p style="color:var(--text-secondary); font-size:13px; margin-top:12px;">📏 @RouteStats</p>
         }
     </div>
+
+    <!-- Избранные маршруты -->
+    @if (FavoriteRoutes.Any())
+    {
+        <div class="mt-24">
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">★ Избранные маршруты</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                @foreach (var r in FavoriteRoutes)
+                {
+                    <button class="btn btn-secondary btn-sm"
+                            style="font-size:13px;padding:8px 14px;text-align:left;max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                            @onclick="() => RepeatFavorite(r)">
+                        @r.OriginAddress → @r.DestinationAddress
+                    </button>
+                }
+            </div>
+        </div>
+    }
 
     <!-- Map -->
     <div class="mt-24">
@@ -276,7 +295,10 @@
     private WeatherInfoDto?        CurrentWeather;
     private string? PickMode;
     private string? RouteStats;
-    private string? OrderingSlug;  // ключ "slug+class" пока идёт запрос
+    private string? OrderingSlug;
+    private List<FavoriteRoute> FavoriteRoutes = new();
+
+    record FavoriteRoute(string OriginAddress, string DestinationAddress);
 
     // Координаты по умолчанию: Ишим
     private double OriginLat = 56.1122, OriginLng = 69.4695;
@@ -309,6 +331,7 @@
             }
 
             _selfRef = DotNetObjectReference.Create(this);
+            await LoadFavoriteRoutes();
             await Task.Delay(1500);
             await InitMap();
         }
@@ -574,6 +597,29 @@
             "maksim" => new MarkupString("<svg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' rx='10' fill='#FFD600'/><text y='27' font-size='11' font-weight='900' font-family='Arial Black,Arial,sans-serif'><tspan x='3' fill='#1A1A1A'>m</tspan><tspan fill='#E8001C'>a</tspan><tspan fill='#1A1A1A'>xim</tspan></text></svg>"),
             _ => new MarkupString("<svg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'><rect width='40' height='40' rx='10' fill='#444'/><text x='20' y='27' font-size='18' fill='white' text-anchor='middle' font-family='Arial'>?</text></svg>")
         };
+    }
+
+    // ─── Избранные маршруты ───────────────────────────────────────────────────
+
+    private async Task LoadFavoriteRoutes()
+    {
+        try
+        {
+            var routes = await LocalStorage.GetItemAsync<List<FavRouteCache>>("favorite_routes");
+            FavoriteRoutes = routes?
+                .Select(r => new FavoriteRoute(r.Origin, r.Dest))
+                .ToList() ?? new();
+        }
+        catch { FavoriteRoutes = new(); }
+    }
+
+    record FavRouteCache(string Origin, string Dest);
+
+    private void RepeatFavorite(FavoriteRoute route)
+    {
+        OriginAddress      = route.OriginAddress;
+        DestinationAddress = route.DestinationAddress;
+        StateHasChanged();
     }
 
     // ─── Заказ такси ──────────────────────────────────────────────────────────
