@@ -128,25 +128,28 @@
                             }
                         </div>
 
-                        <!-- Цена + избранное -->
+                        <!-- Цена + звёздочка -->
                         <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
-                            @if (ActiveFilter != "fav")
+                            @if (isOrdered && ride.OrderedPrice.HasValue)
                             {
-                                @if (isOrdered && ride.OrderedPrice.HasValue)
-                                {
-                                    <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--accent);">
-                                        @ride.OrderedPrice.Value.ToString("F0") ₽
-                                    </div>
-                                    <div style="font-size:11px;color:var(--text-muted);">цена заказа</div>
-                                }
-                                else if (ride.LowestPrice.HasValue)
-                                {
-                                    <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent);">
-                                        @ride.LowestPrice.Value.ToString("F0") ₽
-                                    </div>
-                                    <div style="font-size:11px;color:var(--text-muted);">лучшая цена</div>
-                                }
+                                <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--accent);">
+                                    @ride.OrderedPrice.Value.ToString("F0") ₽
+                                </div>
+                                <div style="font-size:11px;color:var(--text-muted);">цена заказа</div>
                             }
+                            else if (ride.LowestPrice.HasValue)
+                            {
+                                <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent);">
+                                    @ride.LowestPrice.Value.ToString("F0") ₽
+                                </div>
+                                <div style="font-size:11px;color:var(--text-muted);">лучшая цена</div>
+                            }
+                            <button @onclick="() => ToggleFavorite(ride.Id)"
+                                    style="background:none;border:none;cursor:pointer;font-size:20px;padding:0;
+                                           color:@(isFav ? "#FFD600" : "var(--text-muted)");"
+                                    title="@(isFav ? "Убрать из избранного" : "Добавить в избранное")">
+                                @(isFav ? "★" : "☆")
+                            </button>
                         </div>
                     </div>
                 </div>
