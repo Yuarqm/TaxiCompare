@@ -217,7 +217,7 @@
                                 }
                                 @if (price.IsBestDeal) { <div class="best-deal-badge mt-8">Выгоднее всех</div> }
                                 <button class="btn btn-primary btn-sm mt-8"
-                                        style="width:100%; font-size:13px; padding:8px 12px;"
+                                        style="min-width:110px;"
                                         @onclick="() => OrderTaxi(price)"
                                         disabled="@(OrderingSlug == price.ProviderSlug + price.VehicleClass)">
                                     @if (OrderingSlug == price.ProviderSlug + price.VehicleClass)
@@ -398,15 +398,27 @@
             // Город для погоды из адреса
             var city = ExtractCity(OriginAddress);
 
+            // Если пользователь авторизован — используем /search (сохраняет в историю)
+            // Если нет — /compare (анонимный, не сохраняет)
+            var isAuth = await AuthService.IsAuthenticatedAsync();
+            var pricesTask = isAuth
+                ? PriceService.SearchPricesAsync(
+                    new PriceComparisonRequest(
+                        OriginAddress, OriginLat, OriginLng,
+                        DestinationAddress, DestLat, DestLng,
+                        PreferredClass: null,
+                        DistanceKm: distanceKm,
+                        OriginCity: city))
+                : PriceService.ComparePricesAsync(
+                    new PriceComparisonRequest(
+                        OriginAddress, OriginLat, OriginLng,
+                        DestinationAddress, DestLat, DestLng,
+                        PreferredClass: null,
+                        DistanceKm: distanceKm,
+                        OriginCity: city));
+
             // Погода и цены параллельно
             var weatherTask = WeatherClientService.GetWeatherAsync(city);
-            var pricesTask  = PriceService.ComparePricesAsync(
-                new PriceComparisonRequest(
-                    OriginAddress, OriginLat, OriginLng,
-                    DestinationAddress, DestLat, DestLng,
-                    PreferredClass: null,  // всегда запрашиваем все классы, фильтр на клиенте
-                    DistanceKm: distanceKm,
-                    OriginCity: city));
 
             await Task.WhenAll(weatherTask, pricesTask);
 

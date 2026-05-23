@@ -152,7 +152,14 @@ public interface IPriceService
 public class PriceService : IPriceService
 {
     private readonly HttpClient _http;
-    public PriceService(HttpClient http) => _http = http;
+    private readonly HttpClient _http;
+    private readonly ILocalStorageService _storage;
+
+    public PriceService(HttpClient http, ILocalStorageService storage)
+    {
+        _http = http;
+        _storage = storage;
+    }
 
     public async Task<PriceComparisonResult?> ComparePricesAsync(PriceComparisonRequest request)
     {
@@ -164,7 +171,14 @@ public class PriceService : IPriceService
 
     public async Task<PriceComparisonResult?> SearchPricesAsync(PriceComparisonRequest request)
     {
-        var response = await _http.PostAsJsonAsync("/api/prices/search", request);
+        // Явно передаём токен чтобы не зависеть от DefaultRequestHeaders (race condition)
+        var token = await _storage.GetItemAsync<string>("auth_token");
+        using var req = new HttpRequestMessage(HttpMethod.Post, "/api/prices/search");
+        req.Content = JsonContent.Create(request);
+        if (!string.IsNullOrEmpty(token))
+            req.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var response = await _http.SendAsync(req);
         return response.IsSuccessStatusCode
             ? await response.Content.ReadFromJsonAsync<PriceComparisonResult>()
             : null;
