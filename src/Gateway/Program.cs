@@ -48,6 +48,9 @@ builder.Services.AddScoped<ITokenService, JwtTokenService>();
 builder.Services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddScoped<IPricingAggregator, PricingAggregator>();
 
+// Заглушка для IPriceAlertService (реальные уведомления не реализованы)
+builder.Services.AddScoped<TaxiCompare.Application.Interfaces.IPriceAlertService, TaxiCompare.Infrastructure.Services.NoOpPriceAlertService>();
+
 // ── Taxi Providers ────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient<UberProvider>(c => { c.BaseAddress = new Uri("https://api.uber.com"); c.Timeout = TimeSpan.FromSeconds(5); });
 builder.Services.AddHttpClient<YandexProvider>(c => { c.BaseAddress = new Uri("https://fleet-api.taxi.yandex.net"); c.Timeout = TimeSpan.FromSeconds(5); });
