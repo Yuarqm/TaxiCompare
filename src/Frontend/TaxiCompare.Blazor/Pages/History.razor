@@ -93,58 +93,60 @@
                                 · @ride.PriceSnapshotCount сервисов сравнено
                             </div>
 
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                                <!-- Статус -->
-                                @if (isOrdered && ride.OrderedProviderName is not null)
-                                {
-                                    <div style="display:inline-flex;align-items:center;gap:6px;
-                                                background:rgba(0,212,106,0.1);border:1px solid rgba(0,212,106,0.25);
-                                                border-radius:20px;padding:4px 12px;font-size:13px;">
-                                        <span style="color:var(--accent);font-weight:700;">Заказано</span>
-                                        <span style="color:var(--text-secondary);">
-                                            @ride.OrderedProviderName · @TranslateClass(ride.OrderedVehicleClass ?? "")
-                                        </span>
-                                        @if (ride.OrderedAt.HasValue)
-                                        {
-                                            <span style="color:var(--text-muted);">в @ride.OrderedAt.Value.ToLocalTime().ToString("HH:mm")</span>
-                                        }
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div style="display:inline-flex;align-items:center;gap:6px;
-                                                background:var(--card-bg);border:1px solid var(--border);
-                                                border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-muted);">
-                                        Только сравнение
-                                    </div>
-                                }
-
-                                <!-- Кнопка повторить маршрут -->
-                                <button class="btn btn-secondary btn-sm"
-                                        style="font-size:12px;padding:4px 12px;"
-                                        @onclick="() => RepeatRoute(ride)">
-                                    Повторить
-                                </button>
-                            </div>
+                            @if (ActiveFilter != "fav")
+                            {
+                                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                                    @if (isOrdered && ride.OrderedProviderName is not null)
+                                    {
+                                        <div style="display:inline-flex;align-items:center;gap:6px;
+                                                    background:rgba(0,212,106,0.1);border:1px solid rgba(0,212,106,0.25);
+                                                    border-radius:20px;padding:4px 12px;font-size:13px;">
+                                            <span style="color:var(--accent);font-weight:700;">Заказано</span>
+                                            <span style="color:var(--text-secondary);">
+                                                @ride.OrderedProviderName · @TranslateClass(ride.OrderedVehicleClass ?? "")
+                                            </span>
+                                            @if (ride.OrderedAt.HasValue)
+                                            {
+                                                <span style="color:var(--text-muted);">в @ride.OrderedAt.Value.ToLocalTime().ToString("HH:mm")</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div style="display:inline-flex;align-items:center;gap:6px;
+                                                    background:var(--card-bg);border:1px solid var(--border);
+                                                    border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-muted);">
+                                            Только сравнение
+                                        </div>
+                                    }
+                                    <button class="btn btn-secondary btn-sm"
+                                            style="font-size:12px;padding:4px 12px;"
+                                            @onclick="() => RepeatRoute(ride)">
+                                        Повторить
+                                    </button>
+                                </div>
+                            }
                         </div>
 
                         <!-- Цена + избранное -->
                         <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
-                            @if (isOrdered && ride.OrderedPrice.HasValue)
+                            @if (ActiveFilter != "fav")
                             {
-                                <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--accent);">
-                                    @ride.OrderedPrice.Value.ToString("F0") ₽
-                                </div>
-                                <div style="font-size:11px;color:var(--text-muted);">цена заказа</div>
+                                @if (isOrdered && ride.OrderedPrice.HasValue)
+                                {
+                                    <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--accent);">
+                                        @ride.OrderedPrice.Value.ToString("F0") ₽
+                                    </div>
+                                    <div style="font-size:11px;color:var(--text-muted);">цена заказа</div>
+                                }
+                                else if (ride.LowestPrice.HasValue)
+                                {
+                                    <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent);">
+                                        @ride.LowestPrice.Value.ToString("F0") ₽
+                                    </div>
+                                    <div style="font-size:11px;color:var(--text-muted);">лучшая цена</div>
+                                }
                             }
-                            else if (ride.LowestPrice.HasValue)
-                            {
-                                <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--accent);">
-                                    @ride.LowestPrice.Value.ToString("F0") ₽
-                                </div>
-                                <div style="font-size:11px;color:var(--text-muted);">лучшая цена</div>
-                            }
-
                             <!-- Звёздочка избранного -->
                             <button @onclick="() => ToggleFavorite(ride.Id)"
                                     style="background:none;border:none;cursor:pointer;font-size:20px;padding:0;
