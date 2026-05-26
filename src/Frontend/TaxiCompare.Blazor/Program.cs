@@ -35,6 +35,19 @@ var host = builder.Build();
 // Ждём пока Gateway проснётся (Render усыпляет сервис после простоя)
 await WakeUpGateway(baseUrl);
 
+// Читаем токен из localStorage и сразу устанавливаем в HttpClient
+// ДО первого рендера — это решает проблему 401 при холодном старте
+try
+{
+    var storage = host.Services.GetRequiredService<ILocalStorageService>();
+    var http = host.Services.GetRequiredService<HttpClient>();
+    var token = await storage.GetItemAsync<string>("auth_token");
+    if (!string.IsNullOrEmpty(token))
+        http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+}
+catch { /* токена нет — работаем как гость */ }
+
 await host.RunAsync();
 
 static async Task WakeUpGateway(string baseUrl)
