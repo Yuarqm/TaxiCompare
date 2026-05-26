@@ -3,6 +3,7 @@ using Blazored.Toast;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.JSInterop;
 using TaxiCompare.Blazor;
 using TaxiCompare.Blazor.Services;
 
@@ -35,16 +36,20 @@ var host = builder.Build();
 // Ждём пока Gateway проснётся (Render усыпляет сервис после простоя)
 await WakeUpGateway(baseUrl);
 
-// Читаем токен из localStorage и сразу устанавливаем в HttpClient
-// ДО первого рендера — это решает проблему 401 при холодном старте
+// Читаем токен напрямую из localStorage через JS и устанавливаем в HttpClient
+// ДО первого рендера — гарантирует что первый запрос уйдёт с токеном
 try
 {
-    var storage = host.Services.GetRequiredService<ILocalStorageService>();
-    var http = host.Services.GetRequiredService<HttpClient>();
-    var token = await storage.GetItemAsync<string>("auth_token");
+    var js = host.Services.GetRequiredService<IJSRuntime>();
+    var token = await js.InvokeAsync<string?>("localStorage.getItem", "auth_token");
+    // Blazored.LocalStorage сериализует строки в JSON с кавычками — убираем их
     if (!string.IsNullOrEmpty(token))
+    {
+        token = token.Trim('"');
+        var http = host.Services.GetRequiredService<HttpClient>();
         http.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
 }
 catch { /* токена нет — работаем как гость */ }
 
