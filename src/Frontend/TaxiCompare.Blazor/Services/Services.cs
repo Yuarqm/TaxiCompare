@@ -60,6 +60,7 @@ public class AuthTokenHandler : DelegatingHandler
 }
 
 // ─── JWT Auth State Provider ──────────────────────────────────────────────────
+public class JwtAuthStateProvider : AuthenticationStateProvider
 {
     private readonly ILocalStorageService _storage;
     private readonly HttpClient _http;
