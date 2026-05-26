@@ -27,8 +27,18 @@
                 <span>ТаксиСравни</span>
             </div>
             <div class="splash-spinner"></div>
+            <p id="wake-msg" style="display:none;color:#aaa;font-size:13px;margin-top:16px;font-family:Arial,sans-serif;">
+                Сервис запускается, подождите...
+            </p>
         </div>
     </div>
+    <script>
+        // Показываем сообщение если загрузка > 4 секунд (сервис на Render просыпается)
+        setTimeout(function() {
+            var el = document.getElementById('wake-msg');
+            if (el) el.style.display = 'block';
+        }, 4000);
+    </script>
     <div id="blazor-error-ui">
         Произошла непредвиденная ошибка.
         <a href="" class="reload">Обновить</a>

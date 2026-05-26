@@ -32,7 +32,34 @@ public record UserDto(Guid Id, string Email, string FirstName, string LastName, 
 public record NotificationDto(Guid Id, string Title, string Message, string Type, bool IsRead, DateTime CreatedAt);
 
 // ─── Auth State Provider ─────────────────────────────────────────────────────
-public class JwtAuthStateProvider : AuthenticationStateProvider
+// ─── Auth Token Handler ───────────────────────────────────────────────────────
+// Перехватывает каждый HTTP-запрос и подставляет Bearer токен из localStorage.
+// Это надёжнее чем DefaultRequestHeaders — работает даже при холодном старте.
+public class AuthTokenHandler : DelegatingHandler
+{
+    private readonly ILocalStorageService _storage;
+    public AuthTokenHandler(ILocalStorageService storage) => _storage = storage;
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        // Не перезаписываем если заголовок уже установлен явно
+        if (request.Headers.Authorization == null)
+        {
+            try
+            {
+                var token = await _storage.GetItemAsync<string>("auth_token");
+                if (!string.IsNullOrEmpty(token))
+                    request.Headers.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            }
+            catch { /* localStorage недоступен — продолжаем без токена */ }
+        }
+        return await base.SendAsync(request, cancellationToken);
+    }
+}
+
+// ─── JWT Auth State Provider ──────────────────────────────────────────────────
 {
     private readonly ILocalStorageService _storage;
     private readonly HttpClient _http;
@@ -170,14 +197,8 @@ public class PriceService : IPriceService
 
     public async Task<PriceComparisonResult?> SearchPricesAsync(PriceComparisonRequest request)
     {
-        // Явно передаём токен чтобы не зависеть от DefaultRequestHeaders (race condition)
-        var token = await _storage.GetItemAsync<string>("auth_token");
-        using var req = new HttpRequestMessage(HttpMethod.Post, "/api/prices/search");
-        req.Content = JsonContent.Create(request);
-        if (!string.IsNullOrEmpty(token))
-            req.Headers.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        var response = await _http.SendAsync(req);
+        // Токен подставляется автоматически через AuthTokenHandler
+        var response = await _http.PostAsJsonAsync("/api/prices/search", request);
         return response.IsSuccessStatusCode
             ? await response.Content.ReadFromJsonAsync<PriceComparisonResult>()
             : null;

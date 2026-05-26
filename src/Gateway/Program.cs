@@ -182,6 +182,9 @@ app.UseCors("BlazorPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Health check — используется фронтендом для ожидания пробуждения сервиса на Render
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", time = DateTime.UtcNow }));
 app.MapHub<PriceHub>("/hubs/prices");
 app.MapHealthChecks("/health");
 
