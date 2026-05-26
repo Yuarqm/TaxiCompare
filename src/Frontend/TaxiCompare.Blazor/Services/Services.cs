@@ -33,8 +33,6 @@ public record NotificationDto(Guid Id, string Title, string Message, string Type
 
 // ─── Auth State Provider ─────────────────────────────────────────────────────
 // ─── Auth Token Handler ───────────────────────────────────────────────────────
-// Перехватывает каждый HTTP-запрос и подставляет Bearer токен из localStorage.
-// Это надёжнее чем DefaultRequestHeaders — работает даже при холодном старте.
 public class AuthTokenHandler : DelegatingHandler
 {
     private readonly ILocalStorageService _storage;
@@ -43,7 +41,6 @@ public class AuthTokenHandler : DelegatingHandler
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        // Не перезаписываем если заголовок уже установлен явно
         if (request.Headers.Authorization == null)
         {
             try
@@ -53,9 +50,23 @@ public class AuthTokenHandler : DelegatingHandler
                     request.Headers.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
-            catch { /* localStorage недоступен — продолжаем без токена */ }
+            catch { }
         }
-        return await base.SendAsync(request, cancellationToken);
+
+        var response = await base.SendAsync(request, cancellationToken);
+
+        // Если токен просрочен — очищаем localStorage чтобы не было бесконечных 401
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            try
+            {
+                await _storage.RemoveItemAsync("auth_token");
+                await _storage.RemoveItemAsync("refresh_token");
+            }
+            catch { }
+        }
+
+        return response;
     }
 }
 
