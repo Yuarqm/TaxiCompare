@@ -14,18 +14,24 @@
                 <span class="brand-name">Такси<span>Сравни</span></span>
             </a>
 
-            <div class="nav-links">
-                <a href="/" class="nav-link">Поиск</a>
-                <a href="/analytics" class="nav-link">Аналитика</a>
+            <button class="burger @(menuOpen ? "open" : "")" @onclick="ToggleMenu" aria-label="Меню">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="nav-links @(menuOpen ? "nav-open" : "")">
+                <a href="/" class="nav-link" @onclick="CloseMenu">Поиск</a>
+                <a href="/analytics" class="nav-link" @onclick="CloseMenu">Аналитика</a>
                 <AuthorizeView>
                     <Authorized>
-                        <a href="/history" class="nav-link">История</a>
-                        <a href="/favorites" class="nav-link">Избранное</a>
+                        <a href="/history" class="nav-link" @onclick="CloseMenu">История</a>
+                        <a href="/favorites" class="nav-link" @onclick="CloseMenu">Избранное</a>
                         <button @onclick="Logout" class="btn btn-secondary btn-sm">Выйти</button>
                     </Authorized>
                     <NotAuthorized>
-                        <a href="/login" class="btn btn-secondary btn-sm">Войти</a>
-                        <a href="/register" class="btn btn-primary btn-sm">Регистрация</a>
+                        <a href="/login" class="btn btn-secondary btn-sm" @onclick="CloseMenu">Войти</a>
+                        <a href="/register" class="btn btn-primary btn-sm" @onclick="CloseMenu">Регистрация</a>
                     </NotAuthorized>
                 </AuthorizeView>
             </div>
@@ -40,8 +46,14 @@
 </div>
 
 @code {
+    private bool menuOpen = false;
+
+    private void ToggleMenu() => menuOpen = !menuOpen;
+    private void CloseMenu() => menuOpen = false;
+
     private async Task Logout()
     {
+        menuOpen = false;
         await AuthService.LogoutAsync();
         Nav.NavigateTo("/");
     }
